@@ -16,6 +16,8 @@ from app.models.variant import Variant
 from app.services.clinvar_service import get_clinvar_annotation
 from app.services.gnomad_service import get_gnomad_annotation
 from app.services.ensembl_service import get_ensembl_annotation
+from app.services.scoring_service import score_variant
+from app.services.ai_summary_service import generate_and_store_summary
 
 
 async def annotate_variant(variant: Variant, db: AsyncSession) -> None:
@@ -67,6 +69,10 @@ async def annotate_variant(variant: Variant, db: AsyncSession) -> None:
             variant.transcript_id = ensembl_data.get("transcript_id")
             variant.consequence = ensembl_data.get("consequence")
             variant.protein_change = ensembl_data.get("protein_change")
+
+        # Calculate risk score and generate AI summary
+        score_variant(variant)
+        generate_and_store_summary(variant)
 
         # Update annotation metadata
         variant.annotation_status = "completed"

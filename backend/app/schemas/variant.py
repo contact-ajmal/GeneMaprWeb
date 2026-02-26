@@ -46,6 +46,10 @@ class VariantResponse(VariantBase):
     annotation_status: str | None = None
     annotated_at: datetime | None = None
 
+    # Scoring and AI summary
+    risk_score: int | None = None
+    ai_summary: str | None = None
+
     model_config = {"from_attributes": True}
 
 

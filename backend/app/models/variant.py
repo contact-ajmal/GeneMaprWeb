@@ -62,6 +62,10 @@ class Variant(Base):
     )
     annotated_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
+    # Scoring and AI summary
+    risk_score: Mapped[int] = mapped_column(Integer, nullable=True, index=True)
+    ai_summary: Mapped[str] = mapped_column(Text, nullable=True)
+
     # Metadata
     upload_id: Mapped[str] = mapped_column(String(100), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
