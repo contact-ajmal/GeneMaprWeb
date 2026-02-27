@@ -72,7 +72,7 @@ async def annotate_variant(variant: Variant, db: AsyncSession) -> None:
 
         # Calculate risk score and generate AI summary
         score_variant(variant)
-        generate_and_store_summary(variant)
+        await generate_and_store_summary(variant)
 
         # Update annotation metadata
         variant.annotation_status = "completed"

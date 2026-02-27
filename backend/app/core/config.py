@@ -25,8 +25,10 @@ class Settings(BaseSettings):
     ensembl_base_url: str = "https://rest.ensembl.org"
     clinvar_base_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 
-    # AI
+    # AI - OpenRouter
     llm_api_key: str = "stub"
+    llm_base_url: str = "https://openrouter.ai/api/v1"
+    llm_model: str = "openrouter/auto:free"
 
     # Logging
     log_level: str = "INFO"

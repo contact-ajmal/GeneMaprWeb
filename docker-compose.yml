@@ -51,6 +51,8 @@ services:
       ENSEMBL_BASE_URL: ${ENSEMBL_BASE_URL}
       CLINVAR_BASE_URL: ${CLINVAR_BASE_URL}
       LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      LLM_MODEL: ${LLM_MODEL}
     volumes:
       - ./backend:/app
       - /app/__pycache__
