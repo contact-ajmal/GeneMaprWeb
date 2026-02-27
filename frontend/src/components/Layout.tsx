@@ -5,7 +5,7 @@ import DNAHelix from './backgrounds/DNAHelix'
 import ParticleField from './backgrounds/ParticleField'
 import TopLoadingBar from './ui/TopLoadingBar'
 import DecodeText from './ui/DecodeText'
-import { Upload, BarChart3, Activity, Moon, Sun } from 'lucide-react'
+import { Upload, BarChart3, Activity, Pill, Moon, Sun } from 'lucide-react'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -19,6 +19,7 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/', label: 'Upload', icon: Upload },
     { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
     { path: '/analytics', label: 'Analytics', icon: Activity },
+    { path: '/pharmacogenomics', label: 'PGx', icon: Pill },
   ]
 
   return (

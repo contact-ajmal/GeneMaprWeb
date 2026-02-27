@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.api.variants import router as variants_router
 from app.api.chat import router as chat_router
 from app.api.reports import router as reports_router
+from app.api.pharmacogenomics import router as pharmacogenomics_router
 from app.middleware import (
     LoggingMiddleware,
     configure_logging,
@@ -61,6 +62,7 @@ app.add_middleware(
 app.include_router(variants_router)
 app.include_router(chat_router)
 app.include_router(reports_router)
+app.include_router(pharmacogenomics_router)
 
 
 @app.get("/health")

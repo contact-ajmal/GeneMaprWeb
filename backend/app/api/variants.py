@@ -39,16 +39,17 @@ async def upload_vcf(
     Triggers annotation in background after upload.
     """
     # Validate file extension
-    if not file.filename.endswith(('.vcf', '.vcf.gz')):
+    if not file.filename or not file.filename.endswith(('.vcf', '.vcf.gz')):
         raise HTTPException(
             status_code=400,
             detail="File must be a VCF file (.vcf or .vcf.gz)"
         )
 
     # Save uploaded file to temporary location
+    contents = await file.read()
+
     with tempfile.NamedTemporaryFile(delete=False, suffix='.vcf') as tmp_file:
         tmp_path = Path(tmp_file.name)
-        contents = await file.read()
         tmp_file.write(contents)
 
     try:

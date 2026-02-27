@@ -47,18 +47,28 @@ async def parse_and_store_vcf(
             rs_id = record.id if record.id else None
 
             # Handle multiple alternate alleles
-            for alt in record.alts:
-                # Parse INFO fields
-                depth = record.info.get("DP", None)
-                allele_freq_list = record.info.get("AF", None)
+            if record.alts is None:
+                continue
 
-                # Handle AF (can be a list for multiple alleles)
+            for alt in record.alts:
+                # Parse INFO fields (safely — some VCFs lack DP/AF header definitions)
+                depth = None
                 allele_freq = None
-                if allele_freq_list is not None:
-                    if isinstance(allele_freq_list, (list, tuple)):
-                        allele_freq = float(allele_freq_list[0]) if allele_freq_list else None
-                    else:
-                        allele_freq = float(allele_freq_list)
+
+                try:
+                    depth = record.info.get("DP", None)
+                except (ValueError, KeyError):
+                    pass
+
+                try:
+                    allele_freq_list = record.info.get("AF", None)
+                    if allele_freq_list is not None:
+                        if isinstance(allele_freq_list, (list, tuple)):
+                            allele_freq = float(allele_freq_list[0]) if allele_freq_list else None
+                        else:
+                            allele_freq = float(allele_freq_list)
+                except (ValueError, KeyError):
+                    pass
 
                 # Normalize variant
                 normalized = normalize_variant(chrom, pos, ref, alt)
