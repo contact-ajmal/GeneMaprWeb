@@ -60,7 +60,7 @@ export const exportVariantsCSV = async (filters?: VariantFilters): Promise<Blob>
     if (filters.risk_score_max !== undefined) params.risk_score_max = filters.risk_score_max
   }
 
-  const response = await apiClient.get('/variants/export', {
+  const response = await apiClient.get('/variants/export/csv', {
     params,
     responseType: 'blob',
   })
