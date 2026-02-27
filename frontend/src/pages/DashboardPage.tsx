@@ -1,41 +1,91 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getVariants, exportVariantsCSV } from '../api/variants'
+import { motion } from 'framer-motion'
+import { getVariants, exportVariantsCSV, getVariantStats } from '../api/variants'
 import type { Variant, VariantFilters } from '../types/variant'
-import VariantTable from '../components/VariantTable'
 import FilterPanel from '../components/FilterPanel'
+import VariantTable from '../components/VariantTable'
 import VariantDetailModal from '../components/VariantDetailModal'
-import LoadingSpinner from '../components/LoadingSpinner'
+import PageTransition from '../components/PageTransition'
+import GlassCard from '../components/ui/GlassCard'
+import AnimatedButton from '../components/ui/AnimatedButton'
+import DecodeText from '../components/ui/DecodeText'
+import { SkeletonTable } from '../components/ui/Skeleton'
+import { useToast } from '../components/ui/Toast'
+import { useScrollReveal, scrollRevealVariants } from '../hooks/useScrollReveal'
+import { Download, TrendingUp, AlertTriangle, HelpCircle, Activity, CheckCircle2 } from 'lucide-react'
 
 const PAGE_SIZE = 50
+
+// Animated Counter Component
+function AnimatedCounter({ value, duration = 1000 }: { value: number; duration?: number }) {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    let startTime: number
+    let animationFrame: number
+
+    const animate = (currentTime: number) => {
+      if (!startTime) startTime = currentTime
+      const progress = Math.min((currentTime - startTime) / duration, 1)
+
+      setCount(Math.floor(progress * value))
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate)
+      }
+    }
+
+    animationFrame = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(animationFrame)
+  }, [value, duration])
+
+  return <>{count.toLocaleString()}</>
+}
+
+function ScrollRevealSection({ children, index = 0 }: { children: React.ReactNode; index?: number }) {
+  const { ref, isVisible } = useScrollReveal()
+  return (
+    <motion.div
+      ref={ref}
+      variants={scrollRevealVariants}
+      initial="hidden"
+      animate={isVisible ? 'visible' : 'hidden'}
+      custom={index}
+    >
+      {children}
+    </motion.div>
+  )
+}
 
 export default function DashboardPage() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<VariantFilters>({})
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [exportSuccess, setExportSuccess] = useState(false)
+  const { toast } = useToast()
+
+  // Fetch variant stats for KPI cards
+  const { data: statsData } = useQuery({
+    queryKey: ['variantStats'],
+    queryFn: getVariantStats,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['variants', page, filters],
     queryFn: async () => {
-      console.log('DashboardPage: Starting query for variants', { page, PAGE_SIZE, filters })
-      try {
-        const result = await getVariants(page, PAGE_SIZE, filters)
-        console.log('DashboardPage: Query successful', result)
-        return result
-      } catch (err) {
-        console.error('DashboardPage: Query failed', err)
-        throw err
-      }
+      const result = await getVariants(page, PAGE_SIZE, filters)
+      return result
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   })
-
-  console.log('DashboardPage render:', { isLoading, hasData: !!data, error, dataKeys: data ? Object.keys(data) : null })
 
   const handleExport = async () => {
     try {
       setIsExporting(true)
+      setExportSuccess(false)
       const blob = await exportVariantsCSV(filters)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -45,9 +95,12 @@ export default function DashboardPage() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
+      setExportSuccess(true)
+      toast('CSV exported successfully', 'success')
+      setTimeout(() => setExportSuccess(false), 2000)
     } catch (err) {
       console.error('Export failed:', err)
-      alert('Failed to export variants. Please try again.')
+      toast('Failed to export variants. Please try again.', 'error')
     } finally {
       setIsExporting(false)
     }
@@ -55,7 +108,7 @@ export default function DashboardPage() {
 
   const handleFiltersChange = (newFilters: VariantFilters) => {
     setFilters(newFilters)
-    setPage(1) // Reset to first page when filters change
+    setPage(1)
   }
 
   const handleClearFilters = () => {
@@ -65,146 +118,239 @@ export default function DashboardPage() {
 
   const totalPages = data?.total_pages || 1
 
+  // KPI Card Data
+  const kpiCards = [
+    {
+      label: 'Total Variants',
+      value: statsData?.total_variants || 0,
+      icon: Activity,
+      color: 'cyan',
+      borderColor: 'border-l-dna-cyan',
+    },
+    {
+      label: 'Pathogenic',
+      value: statsData?.pathogenic_count || 0,
+      icon: AlertTriangle,
+      color: 'magenta',
+      borderColor: 'border-l-dna-magenta',
+    },
+    {
+      label: 'Likely Pathogenic',
+      value: statsData?.likely_pathogenic_count || 0,
+      icon: TrendingUp,
+      color: 'amber',
+      borderColor: 'border-l-dna-amber',
+    },
+    {
+      label: 'VUS',
+      value: statsData?.vus_count || 0,
+      icon: HelpCircle,
+      color: 'amber',
+      borderColor: 'border-l-dna-amber',
+    },
+    {
+      label: 'High Risk',
+      value: statsData?.high_risk_count || 0,
+      icon: AlertTriangle,
+      color: 'magenta',
+      borderColor: 'border-l-dna-magenta',
+    },
+  ]
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Variant Dashboard</h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">
-            {data?.total
-              ? `Showing ${data.total.toLocaleString()} variant${
-                  data.total !== 1 ? 's' : ''
-                }`
-              : 'Loading variants...'}
-          </p>
+    <PageTransition>
+      <div className="space-y-8">
+        {/* Hero Section */}
+        <div className="flex items-center justify-between">
+          <div>
+            <motion.h1
+              className="text-xl md:text-2xl font-headline font-bold text-slate-100 mb-1"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <DecodeText text="Variant Dashboard" speed={20} />
+            </motion.h1>
+            <motion.p
+              className="text-sm text-slate-400 font-body"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
+              {data?.total
+                ? `Analyzing ${data.total.toLocaleString()} genomic variant${data.total !== 1 ? 's' : ''}`
+                : 'Loading variant data...'}
+            </motion.p>
+          </div>
+
+          {/* CSV Export Button */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, duration: 0.4 }}
+          >
+            <AnimatedButton
+              onClick={handleExport}
+              disabled={isExporting || !data?.variants.length}
+              variant="secondary"
+              className="flex items-center space-x-2"
+            >
+              {exportSuccess ? (
+                <CheckCircle2 className="w-5 h-5 text-[#00ff88]" />
+              ) : (
+                <Download className="w-5 h-5" />
+              )}
+              <span>{isExporting ? 'Exporting...' : exportSuccess ? 'Exported!' : 'Export CSV'}</span>
+            </AnimatedButton>
+          </motion.div>
         </div>
 
-        <button
-          onClick={handleExport}
-          disabled={isExporting || !data?.variants.length}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg
-            hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed
-            transition-colors font-medium"
-        >
-          {isExporting ? (
-            <>
-              <LoadingSpinner size="sm" />
-              <span>Exporting...</span>
-            </>
-          ) : (
-            <>
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <span>Export CSV</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-4 gap-6">
-        {/* Filter Sidebar */}
-        <div className="lg:col-span-1">
-          <FilterPanel
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-            onClearFilters={handleClearFilters}
-          />
-        </div>
-
-        {/* Table Section */}
-        <div className="lg:col-span-3 space-y-4">
-          {isLoading ? (
-            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-12 transition-colors duration-200">
-              <LoadingSpinner size="lg" text="Loading variants..." />
-            </div>
-          ) : error ? (
-            <div className="bg-white dark:bg-slate-800 rounded-lg border border-red-200 dark:border-red-800 p-8 transition-colors duration-200">
-              <div className="flex items-start space-x-3">
-                <svg
-                  className="w-6 h-6 text-red-600 dark:text-red-400 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+        {/* Stats Bar - KPI Cards */}
+        {statsData && (
+          <ScrollRevealSection>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {kpiCards.map((card, index) => (
+                <motion.div
+                  key={card.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 * index, duration: 0.4 }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <div>
-                  <h3 className="font-semibold text-red-900 dark:text-red-100">Error loading variants</h3>
-                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                    {error instanceof Error ? error.message : 'An unexpected error occurred'}
-                  </p>
-                  <button
-                    onClick={() => refetch()}
-                    className="mt-3 px-4 py-2 bg-red-100 dark:bg-red-900 hover:bg-red-200 dark:hover:bg-red-800 text-red-900 dark:text-red-100
-                      rounded-md text-sm font-medium transition-colors"
+                  <GlassCard
+                    variant="interactive"
+                    className={`relative p-6 border-l-4 ${card.borderColor} overflow-hidden group hover:scale-105 transition-transform`}
                   >
-                    Try Again
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              <VariantTable
-                variants={data?.variants || []}
-                onRowClick={setSelectedVariant}
-              />
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 px-6 py-4 transition-colors duration-200">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Page {page} of {totalPages}
-                    </p>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                        className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:bg-slate-50 dark:disabled:bg-slate-800
-                          disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed rounded-md
-                          text-sm font-medium transition-colors text-slate-900 dark:text-slate-100"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={page === totalPages}
-                        className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:bg-slate-50 dark:disabled:bg-slate-800
-                          disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed rounded-md
-                          text-sm font-medium transition-colors text-slate-900 dark:text-slate-100"
-                      >
-                        Next
-                      </button>
+                    {/* Background Icon */}
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-10 group-hover:opacity-20 transition-opacity">
+                      <card.icon className={`w-16 h-16 text-dna-${card.color}`} />
                     </div>
+
+                    <div className="relative z-10">
+                      <p className="text-sm font-body text-slate-400 mb-2">{card.label}</p>
+                      <p className={`text-xl font-headline font-bold text-dna-${card.color}`}>
+                        <AnimatedCounter value={card.value} />
+                      </p>
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              ))}
+            </div>
+          </ScrollRevealSection>
+        )}
+
+        {/* Main Content Grid */}
+        <div className="grid lg:grid-cols-4 gap-6">
+          {/* Filter Sidebar */}
+          <motion.div
+            className="lg:col-span-1"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5, duration: 0.4 }}
+          >
+            <FilterPanel
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onClearFilters={handleClearFilters}
+            />
+          </motion.div>
+
+          {/* Table Section */}
+          <motion.div
+            className="lg:col-span-3 space-y-4"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6, duration: 0.4 }}
+          >
+            {isLoading ? (
+              <SkeletonTable rows={10} />
+            ) : error ? (
+              <GlassCard variant="elevated" className="p-8 border border-dna-magenta/30 shadow-glow-magenta">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle className="w-6 h-6 text-dna-magenta mt-0.5" />
+                  <div>
+                    <h3 className="font-headline font-semibold text-dna-magenta text-sm">
+                      Error loading variants
+                    </h3>
+                    <p className="text-sm text-slate-300 mt-1 font-body">
+                      {error instanceof Error ? error.message : 'An unexpected error occurred'}
+                    </p>
+                    <AnimatedButton
+                      onClick={() => refetch()}
+                      variant="danger"
+                      className="mt-4"
+                    >
+                      Try Again
+                    </AnimatedButton>
                   </div>
                 </div>
-              )}
-            </>
-          )}
+              </GlassCard>
+            ) : (
+              <>
+                <VariantTable
+                  variants={data?.variants || []}
+                  onRowClick={setSelectedVariant}
+                />
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <GlassCard variant="default" className="px-6 py-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-slate-400 font-body">
+                        Page <span className="text-dna-cyan font-mono-variant">{page}</span> of{' '}
+                        <span className="font-mono-variant">{totalPages}</span>
+                      </p>
+                      <div className="flex items-center space-x-2">
+                        <AnimatedButton
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                          disabled={page === 1}
+                          variant="ghost"
+                          className="px-4 py-2"
+                        >
+                          Previous
+                        </AnimatedButton>
+
+                        {/* Page number pills */}
+                        <div className="flex items-center space-x-1">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            const start = Math.max(1, Math.min(page - 2, totalPages - 4))
+                            const pageNum = start + i
+                            if (pageNum > totalPages) return null
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setPage(pageNum)}
+                                className={`w-8 h-8 rounded-lg text-sm font-mono-variant transition-all duration-200
+                                  ${pageNum === page
+                                    ? 'bg-dna-cyan/20 text-dna-cyan border border-dna-cyan/40 shadow-[0_0_10px_rgba(0,212,255,0.15)]'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                                  }`}
+                              >
+                                {pageNum}
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        <AnimatedButton
+                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={page === totalPages}
+                          variant="ghost"
+                          className="px-4 py-2"
+                        >
+                          Next
+                        </AnimatedButton>
+                      </div>
+                    </div>
+                  </GlassCard>
+                )}
+              </>
+            )}
+          </motion.div>
         </div>
       </div>
 
       {/* Variant Detail Modal */}
       <VariantDetailModal variant={selectedVariant} onClose={() => setSelectedVariant(null)} />
-    </div>
+    </PageTransition>
   )
 }

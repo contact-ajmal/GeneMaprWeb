@@ -1,5 +1,10 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { VariantFilters } from '../types/variant'
+import GlassCard from './ui/GlassCard'
+import AnimatedButton from './ui/AnimatedButton'
+import GlowBadge from './ui/GlowBadge'
+import { Filter, ChevronDown, X } from 'lucide-react'
 
 interface FilterPanelProps {
   filters: VariantFilters
@@ -32,6 +37,7 @@ export default function FilterPanel({
   onClearFilters,
 }: FilterPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true)
+  const [focusedInput, setFocusedInput] = useState<string | null>(null)
 
   const updateFilter = (key: keyof VariantFilters, value: any) => {
     onFiltersChange({ ...filters, [key]: value })
@@ -45,6 +51,12 @@ export default function FilterPanel({
     updateFilter('consequence', updated)
   }
 
+  const removeFilter = (key: keyof VariantFilters) => {
+    const updated = { ...filters }
+    delete updated[key]
+    onFiltersChange(updated)
+  }
+
   const hasActiveFilters =
     filters.gene ||
     filters.clinvar_significance ||
@@ -54,215 +66,295 @@ export default function FilterPanel({
     filters.risk_score_min !== undefined ||
     filters.risk_score_max !== undefined
 
+  const inputClassName = (name: string) => `
+    w-full px-4 py-2 bg-transparent border-b-2 text-slate-100 font-mono-variant
+    placeholder-slate-500 focus:outline-none
+    transition-all duration-300
+    ${focusedInput === name
+      ? 'border-dna-cyan shadow-[0_2px_10px_rgba(0,212,255,0.15)]'
+      : 'border-slate-600 hover:border-slate-500'
+    }
+  `
+
+  const smallInputClassName = (name: string) => `
+    px-3 py-2 bg-transparent border-b-2 text-slate-100 font-mono-variant text-sm
+    placeholder-slate-500 focus:outline-none
+    transition-all duration-300
+    ${focusedInput === name
+      ? 'border-dna-cyan shadow-[0_2px_10px_rgba(0,212,255,0.15)]'
+      : 'border-slate-600 hover:border-slate-500'
+    }
+  `
+
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors duration-200">
+    <GlassCard variant="elevated" className="overflow-hidden">
+      {/* Header */}
       <div
-        className="flex items-center justify-between p-4 cursor-pointer"
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-bg-tertiary/30 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center space-x-2">
-          <svg
-            className="w-5 h-5 text-slate-600 dark:text-slate-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-            />
-          </svg>
-          <h3 className="font-semibold text-slate-900 dark:text-slate-100">Filters</h3>
+          <Filter className="w-5 h-5 text-dna-cyan" />
+          <h3 className="font-headline font-semibold text-slate-100">Filters</h3>
           {hasActiveFilters && (
-            <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full">
+            <GlowBadge variant="score" severity={5}>
               Active
-            </span>
+            </GlowBadge>
           )}
         </div>
-        <svg
-          className={`w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform ${
-            isExpanded ? 'rotate-180' : ''
-          }`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+        <motion.div
+          animate={{ rotate: isExpanded ? 180 : 0 }}
+          transition={{ duration: 0.3 }}
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
+          <ChevronDown className="w-5 h-5 text-slate-400" />
+        </motion.div>
       </div>
 
-      {isExpanded && (
-        <div className="px-4 pb-4 space-y-4 border-t border-slate-100 dark:border-slate-700">
-          {/* Gene Filter */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Gene
-            </label>
-            <input
-              type="text"
-              value={filters.gene || ''}
-              onChange={(e) => updateFilter('gene', e.target.value || undefined)}
-              placeholder="e.g., BRCA1"
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm
-                bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100
-                focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Clinical Significance */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Clinical Significance
-            </label>
-            <select
-              value={filters.clinvar_significance || ''}
-              onChange={(e) =>
-                updateFilter('clinvar_significance', e.target.value || undefined)
-              }
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm
-                bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100
-                focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      {/* Active Filters Pills */}
+      {hasActiveFilters && (
+        <div className="px-4 pb-3 flex flex-wrap gap-2">
+          {filters.gene && (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex items-center space-x-1 px-3 py-1 glass-panel-interactive rounded-full border border-dna-cyan/30 shadow-glow-cyan-sm group hover:border-dna-cyan/50 transition-colors"
             >
-              <option value="">All</option>
-              {CLINICAL_SIGNIFICANCE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Allele Frequency Range */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Allele Frequency
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="number"
-                value={filters.af_min ?? ''}
-                onChange={(e) =>
-                  updateFilter(
-                    'af_min',
-                    e.target.value ? parseFloat(e.target.value) : undefined
-                  )
-                }
-                placeholder="Min"
-                min="0"
-                max="1"
-                step="0.001"
-                className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm
-                  bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100
-                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <input
-                type="number"
-                value={filters.af_max ?? ''}
-                onChange={(e) =>
-                  updateFilter(
-                    'af_max',
-                    e.target.value ? parseFloat(e.target.value) : undefined
-                  )
-                }
-                placeholder="Max"
-                min="0"
-                max="1"
-                step="0.001"
-                className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm
-                  bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100
-                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Risk Score Range */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Risk Score
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="number"
-                value={filters.risk_score_min ?? ''}
-                onChange={(e) =>
-                  updateFilter(
-                    'risk_score_min',
-                    e.target.value ? parseFloat(e.target.value) : undefined
-                  )
-                }
-                placeholder="Min"
-                min="0"
-                max="100"
-                step="1"
-                className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm
-                  bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100
-                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <input
-                type="number"
-                value={filters.risk_score_max ?? ''}
-                onChange={(e) =>
-                  updateFilter(
-                    'risk_score_max',
-                    e.target.value ? parseFloat(e.target.value) : undefined
-                  )
-                }
-                placeholder="Max"
-                min="0"
-                max="100"
-                step="1"
-                className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md text-sm
-                  bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100
-                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Consequence Type */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Consequence Type
-            </label>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto">
-              {CONSEQUENCE_OPTIONS.map((consequence) => (
-                <label
-                  key={consequence}
-                  className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 p-1.5 rounded"
-                >
-                  <input
-                    type="checkbox"
-                    checked={(filters.consequence || []).includes(consequence)}
-                    onChange={() => toggleConsequence(consequence)}
-                    className="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded
-                      focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-slate-700 dark:text-slate-300">
-                    {consequence.replace(/_/g, ' ')}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Clear Filters Button */}
-          {hasActiveFilters && (
-            <button
-              onClick={onClearFilters}
-              className="w-full py-2 px-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200
-                rounded-md text-sm font-medium transition-colors"
+              <span className="text-xs font-mono-variant text-slate-300">Gene: {filters.gene}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeFilter('gene')
+                }}
+                className="text-slate-400 hover:text-dna-cyan transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </motion.div>
+          )}
+          {filters.clinvar_significance && (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex items-center space-x-1 px-3 py-1 glass-panel-interactive rounded-full border border-dna-cyan/30 shadow-glow-cyan-sm group hover:border-dna-cyan/50 transition-colors"
             >
-              Clear All Filters
-            </button>
+              <span className="text-xs font-mono-variant text-slate-300">{filters.clinvar_significance}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeFilter('clinvar_significance')
+                }}
+                className="text-slate-400 hover:text-dna-cyan transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </motion.div>
           )}
         </div>
       )}
-    </div>
+
+      {/* Filter Content */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-5 border-t border-slate-700/50">
+              {/* Gene Filter */}
+              <div className="pt-4">
+                <label className="block text-sm font-body font-medium text-slate-300 mb-2">
+                  Gene Symbol
+                </label>
+                <input
+                  type="text"
+                  value={filters.gene || ''}
+                  onChange={(e) => updateFilter('gene', e.target.value || undefined)}
+                  onFocus={() => setFocusedInput('gene')}
+                  onBlur={() => setFocusedInput(null)}
+                  placeholder="e.g., BRCA1, TP53"
+                  className={inputClassName('gene')}
+                />
+              </div>
+
+              {/* Clinical Significance */}
+              <div>
+                <label className="block text-sm font-body font-medium text-slate-300 mb-2">
+                  Clinical Significance
+                </label>
+                <div className="relative">
+                  <select
+                    value={filters.clinvar_significance || ''}
+                    onChange={(e) =>
+                      updateFilter('clinvar_significance', e.target.value || undefined)
+                    }
+                    onFocus={() => setFocusedInput('clinvar')}
+                    onBlur={() => setFocusedInput(null)}
+                    className={`w-full px-4 py-2 bg-bg-tertiary/50 border rounded-lg text-slate-100 font-body
+                      focus:outline-none transition-all duration-300 appearance-none cursor-pointer
+                      ${focusedInput === 'clinvar'
+                        ? 'border-dna-cyan shadow-[0_0_10px_rgba(0,212,255,0.15)]'
+                        : 'border-slate-600 hover:border-slate-500'
+                      }`}
+                  >
+                    <option value="" className="bg-bg-secondary">All Variants</option>
+                    {CLINICAL_SIGNIFICANCE_OPTIONS.map((option) => (
+                      <option key={option} value={option} className="bg-bg-secondary">
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Allele Frequency Range */}
+              <div>
+                <label className="block text-sm font-body font-medium text-slate-300 mb-2">
+                  Allele Frequency (AF)
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="number"
+                    value={filters.af_min ?? ''}
+                    onChange={(e) =>
+                      updateFilter(
+                        'af_min',
+                        e.target.value ? parseFloat(e.target.value) : undefined
+                      )
+                    }
+                    onFocus={() => setFocusedInput('af_min')}
+                    onBlur={() => setFocusedInput(null)}
+                    placeholder="Min"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    className={smallInputClassName('af_min')}
+                  />
+                  <input
+                    type="number"
+                    value={filters.af_max ?? ''}
+                    onChange={(e) =>
+                      updateFilter(
+                        'af_max',
+                        e.target.value ? parseFloat(e.target.value) : undefined
+                      )
+                    }
+                    onFocus={() => setFocusedInput('af_max')}
+                    onBlur={() => setFocusedInput(null)}
+                    placeholder="Max"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    className={smallInputClassName('af_max')}
+                  />
+                </div>
+              </div>
+
+              {/* Risk Score Range */}
+              <div>
+                <label className="block text-sm font-body font-medium text-slate-300 mb-2">
+                  Risk Score (0-100)
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="number"
+                    value={filters.risk_score_min ?? ''}
+                    onChange={(e) =>
+                      updateFilter(
+                        'risk_score_min',
+                        e.target.value ? parseFloat(e.target.value) : undefined
+                      )
+                    }
+                    onFocus={() => setFocusedInput('risk_min')}
+                    onBlur={() => setFocusedInput(null)}
+                    placeholder="Min"
+                    min="0"
+                    max="100"
+                    step="1"
+                    className={smallInputClassName('risk_min')}
+                  />
+                  <input
+                    type="number"
+                    value={filters.risk_score_max ?? ''}
+                    onChange={(e) =>
+                      updateFilter(
+                        'risk_score_max',
+                        e.target.value ? parseFloat(e.target.value) : undefined
+                      )
+                    }
+                    onFocus={() => setFocusedInput('risk_max')}
+                    onBlur={() => setFocusedInput(null)}
+                    placeholder="Max"
+                    min="0"
+                    max="100"
+                    step="1"
+                    className={smallInputClassName('risk_max')}
+                  />
+                </div>
+              </div>
+
+              {/* Consequence Type */}
+              <div>
+                <label className="block text-sm font-body font-medium text-slate-300 mb-2">
+                  Consequence Type
+                </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+                  {CONSEQUENCE_OPTIONS.map((consequence) => (
+                    <label
+                      key={consequence}
+                      className="flex items-center space-x-2 cursor-pointer hover:bg-bg-tertiary/30 p-2 rounded-lg transition-colors group"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={(filters.consequence || []).includes(consequence)}
+                        onChange={() => toggleConsequence(consequence)}
+                        className="w-4 h-4 bg-bg-tertiary border-2 border-slate-600 rounded
+                          checked:bg-dna-cyan checked:border-dna-cyan
+                          focus:ring-2 focus:ring-dna-cyan focus:ring-offset-0
+                          transition-all cursor-pointer"
+                      />
+                      <span className="text-sm text-slate-300 font-body group-hover:text-slate-100 transition-colors">
+                        {consequence.replace(/_/g, ' ')}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Clear Filters Button */}
+              {hasActiveFilters && (
+                <AnimatedButton
+                  onClick={onClearFilters}
+                  variant="ghost"
+                  className="w-full"
+                >
+                  Clear All Filters
+                </AnimatedButton>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(15, 23, 42, 0.5);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(0, 212, 255, 0.3);
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 212, 255, 0.5);
+        }
+      `}</style>
+    </GlassCard>
   )
 }

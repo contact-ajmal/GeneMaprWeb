@@ -66,3 +66,31 @@ class VariantListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class TopGene(BaseModel):
+    gene: str
+    count: int
+    max_risk: int
+
+
+class DistributionItem(BaseModel):
+    name: str
+    count: int
+
+
+class VariantStatsResponse(BaseModel):
+    total_variants: int
+    pathogenic_count: int
+    likely_pathogenic_count: int
+    vus_count: int
+    benign_count: int
+    high_risk_count: int
+    mean_risk_score: float
+    mean_allele_frequency: float
+    unique_genes: int
+    top_genes: list[TopGene]
+    consequence_distribution: list[DistributionItem]
+    clinvar_distribution: list[DistributionItem]
+    risk_score_distribution: list[DistributionItem]
+    af_distribution: list[DistributionItem]

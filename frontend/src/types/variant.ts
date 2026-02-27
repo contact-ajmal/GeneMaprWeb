@@ -50,3 +50,31 @@ export interface UploadResponse {
   message: string
   variants_parsed: number
 }
+
+export interface TopGene {
+  gene: string
+  count: number
+  max_risk: number
+}
+
+export interface DistributionItem {
+  name: string
+  count: number
+}
+
+export interface VariantStats {
+  total_variants: number
+  pathogenic_count: number
+  likely_pathogenic_count: number
+  vus_count: number
+  benign_count: number
+  high_risk_count: number
+  mean_risk_score: number
+  mean_allele_frequency: number
+  unique_genes: number
+  top_genes: TopGene[]
+  consequence_distribution: DistributionItem[]
+  clinvar_distribution: DistributionItem[]
+  risk_score_distribution: DistributionItem[]
+  af_distribution: DistributionItem[]
+}

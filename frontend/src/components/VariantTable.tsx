@@ -1,272 +1,284 @@
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
-} from '@tanstack/react-table'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import type { Variant } from '../types/variant'
+import GlassCard from './ui/GlassCard'
+import GlowBadge from './ui/GlowBadge'
+import { ChevronUp, ChevronDown, ChevronsUpDown, Dna } from 'lucide-react'
 
 interface VariantTableProps {
   variants: Variant[]
   onRowClick: (variant: Variant) => void
 }
 
-export default function VariantTable({ variants, onRowClick }: VariantTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([])
+type SortField = 'chrom' | 'pos' | 'gene_symbol' | 'risk_score' | 'allele_freq'
+type SortDirection = 'asc' | 'desc' | null
 
-  const getRiskColor = (score: number | null) => {
-    if (score === null) return 'text-slate-500 dark:text-slate-400'
-    if (score >= 75) return 'text-red-600 dark:text-red-400 font-semibold'
-    if (score >= 50) return 'text-orange-600 dark:text-orange-400 font-semibold'
-    if (score >= 25) return 'text-yellow-700 dark:text-yellow-500'
-    return 'text-green-600 dark:text-green-400'
+export default function VariantTable({ variants, onRowClick }: VariantTableProps) {
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null)
+  const [rippleRowKey, setRippleRowKey] = useState<string | null>(null)
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Cycle: asc -> desc -> null
+      if (sortDirection === 'asc') {
+        setSortDirection('desc')
+      } else if (sortDirection === 'desc') {
+        setSortField(null)
+        setSortDirection(null)
+      }
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
   }
 
-  const columns: ColumnDef<Variant>[] = [
-    {
-      accessorKey: 'chrom',
-      header: 'Chr',
-      cell: (info) => <span className="font-medium">{info.getValue() as string}</span>,
-    },
-    {
-      accessorKey: 'pos',
-      header: 'Position',
-      cell: (info) => (info.getValue() as number).toLocaleString(),
-    },
-    {
-      accessorKey: 'ref',
-      header: 'Ref',
-      cell: (info) => (
-        <span className="font-mono text-sm bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">
-          {info.getValue() as string}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'alt',
-      header: 'Alt',
-      cell: (info) => (
-        <span className="font-mono text-sm bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded">
-          {info.getValue() as string}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'gene_symbol',
-      header: 'Gene',
-      cell: (info) => {
-        const gene = info.getValue() as string | null
-        return gene ? (
-          <span className="font-semibold text-blue-700 dark:text-blue-400">{gene}</span>
-        ) : (
-          <span className="text-slate-400 dark:text-slate-500">—</span>
-        )
-      },
-    },
-    {
-      accessorKey: 'consequence',
-      header: 'Consequence',
-      cell: (info) => {
-        const consequence = info.getValue() as string | null
-        return consequence ? (
-          <span className="text-sm text-slate-700 dark:text-slate-300">
-            {consequence.replace(/_/g, ' ')}
-          </span>
-        ) : (
-          <span className="text-slate-400 dark:text-slate-500">—</span>
-        )
-      },
-    },
-    {
-      accessorKey: 'clinvar_significance',
-      header: 'Clinical Significance',
-      cell: (info) => {
-        const sig = info.getValue() as string | null
-        if (!sig) return <span className="text-slate-400 dark:text-slate-500">—</span>
+  const handleRowClick = useCallback((variant: Variant, rowKey: string) => {
+    setRippleRowKey(rowKey)
+    setTimeout(() => {
+      setRippleRowKey(null)
+      onRowClick(variant)
+    }, 200)
+  }, [onRowClick])
 
-        const isPathogenic = sig.toLowerCase().includes('pathogenic')
-        const isBenign = sig.toLowerCase().includes('benign')
+  const sortedVariants = [...variants].sort((a, b) => {
+    if (!sortField || !sortDirection) return 0
 
-        return (
-          <span
-            className={`text-sm px-2 py-1 rounded-full ${
-              isPathogenic
-                ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
-                : isBenign
-                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-            }`}
-          >
-            {sig}
-          </span>
-        )
-      },
-    },
-    {
-      accessorKey: 'allele_freq',
-      header: 'AF',
-      cell: (info) => {
-        const af = info.getValue() as number | null
-        return af !== null ? (
-          <span className="font-mono text-xs">{af.toExponential(2)}</span>
-        ) : (
-          <span className="text-slate-400 dark:text-slate-500">—</span>
-        )
-      },
-    },
-    {
-      accessorKey: 'risk_score',
-      header: 'Risk Score',
-      cell: (info) => {
-        const score = info.getValue() as number | null
-        return score !== null ? (
-          <span className={getRiskColor(score)}>{score}</span>
-        ) : (
-          <span className="text-slate-400">—</span>
-        )
-      },
-    },
-  ]
+    const aVal = a[sortField]
+    const bVal = b[sortField]
 
-  const table = useReactTable({
-    data: variants,
-    columns,
-    state: {
-      sorting,
-    },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    if (aVal === null || aVal === undefined) return 1
+    if (bVal === null || bVal === undefined) return -1
+
+    const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+    return sortDirection === 'asc' ? comparison : -comparison
   })
+
+  const getClinVarColor = (significance: string | null) => {
+    if (!significance) return 'text-slate-500'
+    const sig = significance.toLowerCase()
+    if (sig.includes('pathogenic') && !sig.includes('likely')) return 'text-dna-magenta'
+    if (sig.includes('likely') && sig.includes('pathogenic')) return 'text-amber-400'
+    if (sig.includes('benign') && !sig.includes('likely')) return 'text-dna-green'
+    if (sig.includes('likely') && sig.includes('benign')) return 'text-green-400'
+    return 'text-dna-amber'
+  }
+
+  const getRiskSeverity = (score: number | null): number => {
+    if (score === null) return 0
+    if (score >= 75) return 9
+    if (score >= 50) return 7
+    if (score >= 25) return 5
+    return 3
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ChevronsUpDown className="w-4 h-4 text-slate-500" />
+    }
+    return sortDirection === 'asc' ? (
+      <ChevronUp className="w-4 h-4 text-dna-cyan" />
+    ) : (
+      <ChevronDown className="w-4 h-4 text-dna-cyan" />
+    )
+  }
+
+  const sortableHeaderClass = (field: SortField) => {
+    const isActive = sortField === field
+    return `flex items-center space-x-1 text-xs font-headline font-semibold uppercase tracking-wider transition-all duration-200 group
+      ${isActive
+        ? 'text-dna-cyan bg-dna-cyan/5 -mx-2 px-2 py-1 rounded-md'
+        : 'text-slate-400 hover:text-dna-cyan hover:bg-dna-cyan/5 -mx-2 px-2 py-1 rounded-md'
+      }`
+  }
 
   if (variants.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-12 text-center transition-colors duration-200">
-        <svg
-          className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      <GlassCard variant="elevated" className="p-12 text-center">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-          />
-        </svg>
-        <p className="text-slate-600 dark:text-slate-300 text-lg font-medium">No variants found</p>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
-          Try adjusting your filters or upload a VCF file
-        </p>
-      </div>
+          <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-dna-cyan/20 to-dna-magenta/20 rounded-full flex items-center justify-center shadow-glow-cyan">
+            <Dna className="w-10 h-10 text-dna-cyan" />
+          </div>
+          <p className="text-slate-300 text-sm font-headline font-semibold mb-2">No variants found</p>
+          <p className="text-slate-500 text-sm font-body">
+            Try adjusting your filters or upload a VCF file
+          </p>
+        </motion.div>
+      </GlassCard>
     )
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden transition-colors duration-200">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-700">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="px-4 py-3 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider"
-                  >
-                    {header.isPlaceholder ? null : (
-                      <div
-                        className={
-                          header.column.getCanSort()
-                            ? 'cursor-pointer select-none flex items-center space-x-1 hover:text-slate-900 dark:hover:text-slate-100'
-                            : ''
-                        }
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        <span>
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                        </span>
-                        {header.column.getCanSort() && (
-                          <span className="text-slate-400">
-                            {{
-                              asc: (
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 15l7-7 7 7"
-                                  />
-                                </svg>
-                              ),
-                              desc: (
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 9l-7 7-7-7"
-                                  />
-                                </svg>
-                              ),
-                            }[header.column.getIsSorted() as string] ?? (
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                                />
-                              </svg>
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => onRowClick(row.original)}
-                className="hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer transition-colors"
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-4 py-3 text-sm text-slate-900 dark:text-slate-100">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <GlassCard variant="elevated" className="overflow-hidden">
+      {/* Column Headers */}
+      <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-slate-700/50 bg-bg-tertiary/30">
+        <button
+          onClick={() => handleSort('chrom')}
+          className={`col-span-1 ${sortableHeaderClass('chrom')}`}
+        >
+          <span>Chr</span>
+          <SortIcon field="chrom" />
+        </button>
+        <button
+          onClick={() => handleSort('pos')}
+          className={`col-span-2 ${sortableHeaderClass('pos')}`}
+        >
+          <span>Position</span>
+          <SortIcon field="pos" />
+        </button>
+        <div className="col-span-1 text-xs font-headline font-semibold text-slate-400 uppercase tracking-wider">
+          Ref
+        </div>
+        <div className="col-span-1 text-xs font-headline font-semibold text-slate-400 uppercase tracking-wider">
+          Alt
+        </div>
+        <button
+          onClick={() => handleSort('gene_symbol')}
+          className={`col-span-1 ${sortableHeaderClass('gene_symbol')}`}
+        >
+          <span>Gene</span>
+          <SortIcon field="gene_symbol" />
+        </button>
+        <div className="col-span-2 text-xs font-headline font-semibold text-slate-400 uppercase tracking-wider">
+          Consequence
+        </div>
+        <div className="col-span-2 text-xs font-headline font-semibold text-slate-400 uppercase tracking-wider">
+          ClinVar
+        </div>
+        <button
+          onClick={() => handleSort('allele_freq')}
+          className={`col-span-1 ${sortableHeaderClass('allele_freq')}`}
+        >
+          <span>AF</span>
+          <SortIcon field="allele_freq" />
+        </button>
+        <button
+          onClick={() => handleSort('risk_score')}
+          className={`col-span-1 ${sortableHeaderClass('risk_score')}`}
+        >
+          <span>Risk</span>
+          <SortIcon field="risk_score" />
+        </button>
       </div>
-    </div>
+
+      {/* Variant Rows */}
+      <div className="divide-y divide-slate-700/30">
+        {sortedVariants.map((variant, index) => {
+          const rowKey = `${variant.chrom}-${variant.pos}-${variant.ref}-${variant.alt}`
+          const isRipple = rippleRowKey === rowKey
+
+          return (
+            <motion.div
+              key={rowKey}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.02, duration: 0.3 }}
+              onClick={() => handleRowClick(variant, rowKey)}
+              className={`relative grid grid-cols-12 gap-4 px-6 py-4 cursor-pointer group transition-all duration-300
+                hover:bg-bg-tertiary/50 hover:shadow-glow-cyan-sm hover:border-l-4 hover:border-l-dna-cyan
+                ${index % 2 === 0 ? 'bg-bg-secondary/20' : 'bg-bg-secondary/10'}
+                overflow-hidden`}
+            >
+              {/* Click ripple effect */}
+              {isRipple && (
+                <motion.div
+                  className="absolute inset-0 bg-dna-cyan/10 z-0"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0, 0.3, 0] }}
+                  transition={{ duration: 0.3 }}
+                />
+              )}
+
+              {/* Chromosome */}
+              <div className="col-span-1 flex items-center relative z-10">
+                <span className="font-mono-variant font-medium text-slate-200 text-sm">
+                  {variant.chrom}
+                </span>
+              </div>
+
+              {/* Position */}
+              <div className="col-span-2 flex items-center relative z-10">
+                <span className="font-mono-variant text-slate-300 text-sm">
+                  {variant.pos.toLocaleString()}
+                </span>
+              </div>
+
+              {/* Ref Allele */}
+              <div className="col-span-1 flex items-center relative z-10">
+                <span className="font-mono-variant text-xs px-2 py-1 bg-slate-700/50 rounded border border-slate-600/50">
+                  {variant.ref}
+                </span>
+              </div>
+
+              {/* Alt Allele */}
+              <div className="col-span-1 flex items-center relative z-10">
+                <span className="font-mono-variant text-xs px-2 py-1 bg-dna-cyan/10 text-dna-cyan rounded border border-dna-cyan/30">
+                  {variant.alt}
+                </span>
+              </div>
+
+              {/* Gene Symbol */}
+              <div className="col-span-1 flex items-center relative z-10">
+                {variant.gene_symbol ? (
+                  <span className="font-mono-variant font-semibold text-dna-cyan">
+                    {variant.gene_symbol}
+                  </span>
+                ) : (
+                  <span className="text-slate-500 text-sm">—</span>
+                )}
+              </div>
+
+              {/* Consequence */}
+              <div className="col-span-2 flex items-center relative z-10">
+                {variant.consequence ? (
+                  <span className="text-sm text-slate-300 font-body">
+                    {variant.consequence.replace(/_/g, ' ')}
+                  </span>
+                ) : (
+                  <span className="text-slate-500 text-sm">—</span>
+                )}
+              </div>
+
+              {/* ClinVar Significance - Colored text, not badges */}
+              <div className="col-span-2 flex items-center relative z-10">
+                {variant.clinvar_significance ? (
+                  <span className={`text-sm font-body font-medium ${getClinVarColor(variant.clinvar_significance)}`}>
+                    {variant.clinvar_significance}
+                  </span>
+                ) : (
+                  <span className="text-slate-500 text-sm">—</span>
+                )}
+              </div>
+
+              {/* Allele Frequency - Scientific notation */}
+              <div className="col-span-1 flex items-center relative z-10">
+                {variant.allele_freq !== null ? (
+                  <span className="font-mono-variant text-xs text-slate-400">
+                    {variant.allele_freq.toExponential(2)}
+                  </span>
+                ) : (
+                  <span className="text-slate-500 text-sm">—</span>
+                )}
+              </div>
+
+              {/* Risk Score - GlowBadge */}
+              <div className="col-span-1 flex items-center relative z-10">
+                {variant.risk_score !== null ? (
+                  <GlowBadge variant="score" severity={getRiskSeverity(variant.risk_score)}>
+                    {variant.risk_score}
+                  </GlowBadge>
+                ) : (
+                  <span className="text-slate-500 text-sm">—</span>
+                )}
+              </div>
+            </motion.div>
+          )
+        })}
+      </div>
+    </GlassCard>
   )
 }

@@ -11,7 +11,14 @@ import io
 
 from app.core.database import get_db
 from app.models.variant import Variant
-from app.schemas.variant import VariantResponse, UploadResponse, VariantListResponse
+from app.schemas.variant import (
+    VariantResponse,
+    UploadResponse,
+    VariantListResponse,
+    VariantStatsResponse,
+    TopGene,
+    DistributionItem
+)
 from app.services.vcf_parser import parse_and_store_vcf
 from app.services.annotation_service import annotate_variants_by_upload_id
 
@@ -77,6 +84,211 @@ async def upload_vcf(
         # Clean up temporary file
         if tmp_path.exists():
             os.unlink(tmp_path)
+
+
+@router.get("/stats", response_model=VariantStatsResponse)
+async def get_variant_stats(db: AsyncSession = Depends(get_db)):
+    """
+    Get aggregated statistics from the current dataset.
+
+    Returns comprehensive statistics including:
+    - Total variant counts by ClinVar significance
+    - High risk variant counts (risk_score >= 8)
+    - Mean risk score and allele frequency
+    - Top 10 genes by variant count
+    - Distribution of variants by consequence type
+    - Distribution by ClinVar significance
+    - Distribution by risk score ranges
+    - Distribution by allele frequency ranges
+    """
+    # Get total variants
+    total_result = await db.execute(select(func.count()).select_from(Variant))
+    total_variants = total_result.scalar_one()
+
+    if total_variants == 0:
+        # Return empty stats if no variants
+        return VariantStatsResponse(
+            total_variants=0,
+            pathogenic_count=0,
+            likely_pathogenic_count=0,
+            vus_count=0,
+            benign_count=0,
+            high_risk_count=0,
+            mean_risk_score=0.0,
+            mean_allele_frequency=0.0,
+            unique_genes=0,
+            top_genes=[],
+            consequence_distribution=[],
+            clinvar_distribution=[],
+            risk_score_distribution=[],
+            af_distribution=[]
+        )
+
+    # Count by ClinVar significance
+    pathogenic_result = await db.execute(
+        select(func.count()).select_from(Variant)
+        .where(Variant.clinvar_significance.ilike('%pathogenic%'))
+        .where(~Variant.clinvar_significance.ilike('%likely%'))
+    )
+    pathogenic_count = pathogenic_result.scalar_one()
+
+    likely_pathogenic_result = await db.execute(
+        select(func.count()).select_from(Variant)
+        .where(Variant.clinvar_significance.ilike('%likely pathogenic%'))
+    )
+    likely_pathogenic_count = likely_pathogenic_result.scalar_one()
+
+    vus_result = await db.execute(
+        select(func.count()).select_from(Variant)
+        .where(Variant.clinvar_significance.ilike('%uncertain%'))
+    )
+    vus_count = vus_result.scalar_one()
+
+    benign_result = await db.execute(
+        select(func.count()).select_from(Variant)
+        .where(Variant.clinvar_significance.ilike('%benign%'))
+    )
+    benign_count = benign_result.scalar_one()
+
+    # High risk count (risk_score >= 8)
+    high_risk_result = await db.execute(
+        select(func.count()).select_from(Variant)
+        .where(Variant.risk_score >= 8)
+    )
+    high_risk_count = high_risk_result.scalar_one()
+
+    # Mean risk score
+    mean_risk_result = await db.execute(
+        select(func.avg(Variant.risk_score))
+        .where(Variant.risk_score.isnot(None))
+    )
+    mean_risk_score = float(mean_risk_result.scalar_one() or 0.0)
+
+    # Mean allele frequency
+    mean_af_result = await db.execute(
+        select(func.avg(Variant.gnomad_af))
+        .where(Variant.gnomad_af.isnot(None))
+    )
+    mean_allele_frequency = float(mean_af_result.scalar_one() or 0.0)
+
+    # Unique genes
+    unique_genes_result = await db.execute(
+        select(func.count(func.distinct(Variant.gene_symbol)))
+        .where(Variant.gene_symbol.isnot(None))
+    )
+    unique_genes = unique_genes_result.scalar_one()
+
+    # Top 10 genes by variant count with max risk score
+    top_genes_result = await db.execute(
+        select(
+            Variant.gene_symbol,
+            func.count(Variant.id).label('count'),
+            func.max(Variant.risk_score).label('max_risk')
+        )
+        .where(Variant.gene_symbol.isnot(None))
+        .group_by(Variant.gene_symbol)
+        .order_by(func.count(Variant.id).desc())
+        .limit(10)
+    )
+    top_genes = [
+        TopGene(gene=row[0], count=row[1], max_risk=row[2] or 0)
+        for row in top_genes_result.all()
+    ]
+
+    # Consequence distribution
+    consequence_result = await db.execute(
+        select(
+            Variant.consequence,
+            func.count(Variant.id).label('count')
+        )
+        .where(Variant.consequence.isnot(None))
+        .group_by(Variant.consequence)
+        .order_by(func.count(Variant.id).desc())
+    )
+    consequence_distribution = [
+        DistributionItem(name=row[0], count=row[1])
+        for row in consequence_result.all()
+    ]
+
+    # ClinVar distribution
+    clinvar_result = await db.execute(
+        select(
+            Variant.clinvar_significance,
+            func.count(Variant.id).label('count')
+        )
+        .where(Variant.clinvar_significance.isnot(None))
+        .group_by(Variant.clinvar_significance)
+        .order_by(func.count(Variant.id).desc())
+    )
+    clinvar_distribution = [
+        DistributionItem(name=row[0], count=row[1])
+        for row in clinvar_result.all()
+    ]
+
+    # Risk score distribution (0-2, 3-5, 6-8, 9+)
+    risk_ranges = [
+        ("0-2", 0, 2),
+        ("3-5", 3, 5),
+        ("6-8", 6, 8),
+        ("9+", 9, float('inf'))
+    ]
+    risk_score_distribution = []
+    for range_name, min_val, max_val in risk_ranges:
+        if max_val == float('inf'):
+            count_result = await db.execute(
+                select(func.count()).select_from(Variant)
+                .where(Variant.risk_score >= min_val)
+            )
+        else:
+            count_result = await db.execute(
+                select(func.count()).select_from(Variant)
+                .where(Variant.risk_score >= min_val)
+                .where(Variant.risk_score <= max_val)
+            )
+        count = count_result.scalar_one()
+        if count > 0:
+            risk_score_distribution.append(DistributionItem(name=range_name, count=count))
+
+    # Allele frequency distribution (<0.001, 0.001-0.01, 0.01-0.05, >0.05)
+    af_ranges = [
+        ("<0.001", 0, 0.001),
+        ("0.001-0.01", 0.001, 0.01),
+        ("0.01-0.05", 0.01, 0.05),
+        (">0.05", 0.05, float('inf'))
+    ]
+    af_distribution = []
+    for range_name, min_val, max_val in af_ranges:
+        if max_val == float('inf'):
+            count_result = await db.execute(
+                select(func.count()).select_from(Variant)
+                .where(Variant.gnomad_af >= min_val)
+            )
+        else:
+            count_result = await db.execute(
+                select(func.count()).select_from(Variant)
+                .where(Variant.gnomad_af >= min_val)
+                .where(Variant.gnomad_af < max_val)
+            )
+        count = count_result.scalar_one()
+        if count > 0:
+            af_distribution.append(DistributionItem(name=range_name, count=count))
+
+    return VariantStatsResponse(
+        total_variants=total_variants,
+        pathogenic_count=pathogenic_count,
+        likely_pathogenic_count=likely_pathogenic_count,
+        vus_count=vus_count,
+        benign_count=benign_count,
+        high_risk_count=high_risk_count,
+        mean_risk_score=round(mean_risk_score, 2),
+        mean_allele_frequency=round(mean_allele_frequency, 6),
+        unique_genes=unique_genes,
+        top_genes=top_genes,
+        consequence_distribution=consequence_distribution,
+        clinvar_distribution=clinvar_distribution,
+        risk_score_distribution=risk_score_distribution,
+        af_distribution=af_distribution
+    )
 
 
 @router.get("", response_model=VariantListResponse)

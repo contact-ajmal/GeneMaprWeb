@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { PaginatedVariants, VariantFilters, UploadResponse } from '../types/variant'
+import type { PaginatedVariants, VariantFilters, UploadResponse, VariantStats } from '../types/variant'
 
 export const uploadVCF = async (file: File): Promise<UploadResponse> => {
   const formData = new FormData()
@@ -65,5 +65,10 @@ export const exportVariantsCSV = async (filters?: VariantFilters): Promise<Blob>
     responseType: 'blob',
   })
 
+  return response.data
+}
+
+export const getVariantStats = async (): Promise<VariantStats> => {
+  const response = await apiClient.get<VariantStats>('/variants/stats')
   return response.data
 }

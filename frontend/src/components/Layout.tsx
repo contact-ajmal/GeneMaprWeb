@@ -1,5 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
+import { motion } from 'framer-motion'
+import DNAHelix from './backgrounds/DNAHelix'
+import ParticleField from './backgrounds/ParticleField'
+import TopLoadingBar from './ui/TopLoadingBar'
+import DecodeText from './ui/DecodeText'
+import { Upload, BarChart3, Activity, Moon, Sun } from 'lucide-react'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -9,85 +15,170 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
 
+  const navItems = [
+    { path: '/', label: 'Upload', icon: Upload },
+    { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+    { path: '/analytics', label: 'Analytics', icon: Activity },
+  ]
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 transition-colors duration-200">
-      <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm transition-colors duration-200">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen">
+      {/* Top Loading Bar */}
+      <TopLoadingBar />
+
+      {/* DNA Helix Background */}
+      <DNAHelix />
+
+      {/* Particle Field Background */}
+      <ParticleField />
+
+      {/* Glass Navigation Bar */}
+      <nav className="glass-panel-elevated sticky top-0 z-40 border-b border-dna-cyan/10">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-8">
-              <Link to="/" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">G</span>
-                </div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">GeneMapr</h1>
-              </Link>
-              <div className="flex space-x-6">
-                <Link
-                  to="/"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    location.pathname === '/'
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
+            {/* Logo & Brand */}
+            <Link to="/" className="flex items-center space-x-3 group">
+              <motion.div
+                className="w-10 h-10 bg-gradient-to-br from-dna-cyan to-blue-600 rounded-xl flex items-center justify-center shadow-glow-cyan"
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <svg
+                  className="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  Upload
-                </Link>
-                <Link
-                  to="/dashboard"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    location.pathname === '/dashboard'
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  Dashboard
-                </Link>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </motion.div>
+              <div>
+                <h1 className="text-lg font-headline font-bold text-slate-100 group-hover:text-dna-cyan transition-colors">
+                  <DecodeText text="GeneMapr" trigger="hover" speed={20} />
+                </h1>
               </div>
+            </Link>
+
+            {/* Navigation Links */}
+            <div className="flex items-center space-x-2">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path
+                const Icon = item.icon
+
+                return (
+                  <Link key={item.path} to={item.path}>
+                    <motion.div
+                      className={`
+                        relative px-4 py-2 rounded-lg font-body font-medium text-sm
+                        flex items-center space-x-2
+                        transition-all duration-200
+                        ${
+                          isActive
+                            ? 'glass-panel-interactive text-dna-cyan shadow-glow-cyan'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                        }
+                      `}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {/* Active indicator */}
+                      {isActive && (
+                        <motion.div
+                          className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-dna-cyan to-dna-magenta rounded-r"
+                          layoutId="activeNav"
+                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                        />
+                      )}
+
+                      {/* Hover underline for inactive items */}
+                      {!isActive && (
+                        <motion.div
+                          className="absolute bottom-0 left-2 right-2 h-0.5 bg-dna-cyan/50 rounded-full origin-left"
+                          initial={{ scaleX: 0 }}
+                          whileHover={{ scaleX: 1 }}
+                          transition={{ duration: 0.2 }}
+                        />
+                      )}
+
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+
+                      {/* Glow effect on active */}
+                      {isActive && (
+                        <motion.div
+                          className="absolute inset-0 bg-dna-cyan/5 rounded-lg -z-10"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      )}
+                    </motion.div>
+                  </Link>
+                )
+              })}
             </div>
+
+            {/* Right Section */}
             <div className="flex items-center space-x-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">
-                Genomic Variant Interpretation Platform
+              {/* Tagline */}
+              <p className="text-sm text-slate-500 hidden lg:block font-body">
+                Premium Genomic Analysis Platform
               </p>
-              <button
+
+              {/* Theme Toggle */}
+              <motion.button
                 onClick={toggleTheme}
-                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                className="p-2.5 rounded-lg glass-panel hover:glass-panel-interactive transition-all"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 aria-label="Toggle theme"
               >
                 {theme === 'light' ? (
-                  <svg
-                    className="w-5 h-5 text-slate-600 dark:text-slate-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                    />
-                  </svg>
+                  <Moon className="w-5 h-5 text-slate-400" />
                 ) : (
-                  <svg
-                    className="w-5 h-5 text-slate-600 dark:text-slate-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                    />
-                  </svg>
+                  <Sun className="w-5 h-5 text-dna-cyan" />
                 )}
-              </button>
+              </motion.button>
             </div>
           </div>
         </div>
       </nav>
-      <main className="container mx-auto px-4 py-8">{children}</main>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-6 py-8 relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {children}
+        </motion.div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 mt-auto py-6 glass-panel border-t border-dna-cyan/5">
+        <div className="container mx-auto px-6">
+          <div className="flex items-center justify-between text-sm text-slate-500">
+            <p className="font-body">
+              © 2026 GeneMapr. Premium Variant Interpretation.
+            </p>
+            <div className="flex items-center space-x-4">
+              <span className="px-2 py-1 rounded bg-dna-cyan/10 text-dna-cyan text-xs font-mono-variant">
+                v2.0
+              </span>
+              <span className="text-slate-600">•</span>
+              <span className="font-mono-variant text-xs">
+                Powered by Claude Sonnet 4.5
+              </span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

@@ -1,4 +1,7 @@
+import { motion, AnimatePresence } from 'framer-motion'
 import type { Variant } from '../types/variant'
+import GlowBadge from './ui/GlowBadge'
+import { X, MapPin, Dna, FileText, Zap, Activity, Globe, Hash } from 'lucide-react'
 
 interface VariantDetailModalProps {
   variant: Variant | null
@@ -9,197 +12,231 @@ export default function VariantDetailModal({
   variant,
   onClose,
 }: VariantDetailModalProps) {
-  if (!variant) return null
-
-  const getRiskColor = (score: number | null) => {
-    if (score === null) return 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-    if (score >= 75) return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
-    if (score >= 50) return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200'
-    if (score >= 25) return 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-    return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+  const getRiskSeverity = (score: number | null): number => {
+    if (score === null) return 0
+    if (score >= 75) return 9
+    if (score >= 50) return 7
+    if (score >= 25) return 5
+    return 3
   }
 
   const getRiskLabel = (score: number | null) => {
     if (score === null) return 'Unknown'
     if (score >= 75) return 'High Risk'
     if (score >= 50) return 'Moderate Risk'
-    if (score >= 25) return 'Low-Moderate Risk'
+    if (score >= 25) return 'Low-Moderate'
     return 'Low Risk'
   }
 
+  const getRiskBarColor = (score: number) => {
+    if (score >= 75) return 'from-dna-magenta to-red-500'
+    if (score >= 50) return 'from-dna-amber to-orange-500'
+    if (score >= 25) return 'from-yellow-400 to-dna-amber'
+    return 'from-dna-green to-emerald-400'
+  }
+
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50 transition-colors duration-200"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto transition-colors duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Variant Details</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              {variant.chrom}:{variant.pos} {variant.ref} → {variant.alt}
-            </p>
-          </div>
-          <button
+    <AnimatePresence>
+      {variant && (
+        <motion.div
+          className="fixed inset-0 flex items-center justify-center p-4 z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          {/* Backdrop */}
+          <motion.div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+
+          {/* Modal */}
+          <motion.div
+            className="relative glass-panel-elevated rounded-2xl shadow-glow-cyan max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-dna-cyan/20"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
           >
-            <svg
-              className="w-6 h-6 text-slate-500 dark:text-slate-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+            {/* Header */}
+            <div className="sticky top-0 z-10 glass-panel-elevated border-b border-slate-700/50 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+              <div>
+                <h2 className="text-lg font-headline font-bold text-slate-100">
+                  Variant Details
+                </h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm font-mono-variant text-dna-cyan">
+                    {variant.chrom}:{variant.pos.toLocaleString()}
+                  </span>
+                  <span className="text-slate-500">|</span>
+                  <span className="font-mono-variant text-sm px-2 py-0.5 bg-slate-700/50 rounded border border-slate-600/50">
+                    {variant.ref}
+                  </span>
+                  <span className="text-slate-500 text-sm">&rarr;</span>
+                  <span className="font-mono-variant text-sm px-2 py-0.5 bg-dna-cyan/10 text-dna-cyan rounded border border-dna-cyan/30">
+                    {variant.alt}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 glass-panel hover:glass-panel-interactive rounded-lg transition-all group"
+              >
+                <X className="w-5 h-5 text-slate-400 group-hover:text-dna-cyan transition-colors" />
+              </button>
+            </div>
 
-        <div className="p-6 space-y-6">
-          {/* Risk Score */}
-          {variant.risk_score !== null && (
-            <div className="bg-gradient-to-br from-blue-50 to-slate-50 dark:from-slate-800 dark:to-slate-850 rounded-lg p-5 border border-slate-200 dark:border-slate-700 transition-colors duration-200">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Risk Assessment</h3>
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-semibold ${getRiskColor(
-                    variant.risk_score
-                  )}`}
+            <div className="p-6 space-y-6">
+              {/* Risk Score */}
+              {variant.risk_score !== null && (
+                <motion.div
+                  className="glass-panel rounded-xl p-5 border border-dna-cyan/10"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
                 >
-                  {getRiskLabel(variant.risk_score)}
-                </span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="flex-1">
-                  <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all ${
-                        variant.risk_score >= 75
-                          ? 'bg-red-500 dark:bg-red-400'
-                          : variant.risk_score >= 50
-                          ? 'bg-orange-500 dark:bg-orange-400'
-                          : variant.risk_score >= 25
-                          ? 'bg-yellow-500 dark:bg-yellow-400'
-                          : 'bg-green-500 dark:bg-green-400'
-                      }`}
-                      style={{ width: `${variant.risk_score}%` }}
-                    ></div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-headline font-semibold text-slate-100 flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-dna-cyan" />
+                      Risk Assessment
+                    </h3>
+                    <GlowBadge variant="score" severity={getRiskSeverity(variant.risk_score)}>
+                      {getRiskLabel(variant.risk_score)}
+                    </GlowBadge>
                   </div>
-                </div>
-                <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                  {variant.risk_score}
-                </span>
-              </div>
-            </div>
-          )}
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-1">
+                      <div className="h-3 bg-bg-tertiary rounded-full overflow-hidden">
+                        <motion.div
+                          className={`h-full bg-gradient-to-r ${getRiskBarColor(variant.risk_score)} rounded-full shadow-glow-cyan-sm`}
+                          initial={{ width: '0%' }}
+                          animate={{ width: `${variant.risk_score}%` }}
+                          transition={{ duration: 1, delay: 0.3, ease: 'easeOut' }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xl font-headline font-bold text-slate-100">
+                      {variant.risk_score}
+                    </span>
+                  </div>
+                </motion.div>
+              )}
 
-          {/* AI Summary */}
-          {variant.ai_summary && (
-            <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950 rounded-lg p-5 border border-purple-200 dark:border-purple-800 transition-colors duration-200">
-              <div className="flex items-start space-x-3">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg
-                    className="w-5 h-5 text-purple-600 dark:text-purple-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
+              {/* AI Summary */}
+              {variant.ai_summary && (
+                <motion.div
+                  className="relative rounded-xl p-5 overflow-hidden"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.08) 0%, rgba(255, 51, 102, 0.08) 100%)',
+                    border: '1px solid',
+                    borderImage: 'linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(255, 51, 102, 0.3)) 1',
+                  }}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-dna-cyan/20 to-dna-magenta/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-glow-cyan-sm">
+                      <Zap className="w-5 h-5 text-dna-cyan" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-headline font-semibold text-slate-100 mb-2">
+                        AI-Generated Summary
+                      </h3>
+                      <p className="text-slate-300 leading-relaxed font-body">{variant.ai_summary}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Basic Information */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <h3 className="text-sm font-headline font-semibold text-slate-100 mb-3 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-dna-cyan" />
+                  Genomic Location
+                </h3>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <InfoItem icon={<Hash className="w-4 h-4" />} label="Chromosome" value={variant.chrom} />
+                  <InfoItem icon={<MapPin className="w-4 h-4" />} label="Position" value={variant.pos.toLocaleString()} />
+                  <InfoItem label="Reference" value={variant.ref} mono />
+                  <InfoItem label="Alternate" value={variant.alt} mono highlight />
+                  <InfoItem icon={<Dna className="w-4 h-4" />} label="Gene" value={variant.gene_symbol || 'N/A'} highlight={!!variant.gene_symbol} />
+                  <InfoItem label="Consequence" value={variant.consequence?.replace(/_/g, ' ') || 'N/A'} />
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
-                    AI-Generated Summary
+              </motion.div>
+
+              {/* Clinical Information */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <h3 className="text-sm font-headline font-semibold text-slate-100 mb-3 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-dna-magenta" />
+                  Clinical Information
+                </h3>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <InfoItem
+                    label="Clinical Significance"
+                    value={variant.clinvar_significance || 'N/A'}
+                    clinvar={variant.clinvar_significance}
+                  />
+                  <InfoItem
+                    label="Allele Frequency"
+                    value={variant.allele_freq !== null ? variant.allele_freq.toExponential(3) : 'N/A'}
+                    mono
+                  />
+                </div>
+              </motion.div>
+
+              {/* Additional Information */}
+              {(variant.rs_id || variant.transcript_id || variant.protein_change) && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <h3 className="text-sm font-headline font-semibold text-slate-100 mb-3 flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-dna-green" />
+                    Annotations
                   </h3>
-                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{variant.ai_summary}</p>
-                </div>
-              </div>
-            </div>
-          )}
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {variant.rs_id && <InfoItem label="dbSNP ID" value={variant.rs_id} mono highlight />}
+                    {variant.transcript_id && <InfoItem label="Transcript" value={variant.transcript_id} mono />}
+                    {variant.protein_change && <InfoItem label="Protein Change" value={variant.protein_change} mono highlight />}
+                    {variant.gnomad_af !== null && (
+                      <InfoItem label="gnomAD AF" value={variant.gnomad_af.toExponential(3)} mono />
+                    )}
+                  </div>
+                </motion.div>
+              )}
 
-          {/* Basic Information */}
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">
-              Basic Information
-            </h3>
-            <div className="grid md:grid-cols-2 gap-4">
-              <InfoItem label="Chromosome" value={variant.chrom} />
-              <InfoItem label="Position" value={variant.pos.toLocaleString()} />
-              <InfoItem label="Reference" value={variant.ref} />
-              <InfoItem label="Alternate" value={variant.alt} />
-              <InfoItem label="Gene" value={variant.gene_symbol || 'N/A'} />
-              <InfoItem
-                label="Consequence"
-                value={variant.consequence?.replace(/_/g, ' ') || 'N/A'}
-              />
+              {/* Metadata */}
+              <motion.div
+                className="border-t border-slate-700/50 pt-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+              >
+                <p className="text-sm text-slate-500 font-body">
+                  Created: {new Date(variant.created_at).toLocaleString()}
+                </p>
+                <p className="text-xs text-slate-600 mt-1 font-mono-variant">ID: {variant.id}</p>
+              </motion.div>
             </div>
-          </div>
-
-          {/* Clinical Information */}
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">
-              Clinical Information
-            </h3>
-            <div className="grid md:grid-cols-2 gap-4">
-              <InfoItem
-                label="Clinical Significance"
-                value={variant.clinvar_significance || 'N/A'}
-                highlight={
-                  variant.clinvar_significance?.toLowerCase().includes('pathogenic')
-                }
-              />
-              <InfoItem
-                label="Allele Frequency"
-                value={
-                  variant.allele_freq !== null
-                    ? variant.allele_freq.toExponential(3)
-                    : 'N/A'
-                }
-              />
-            </div>
-          </div>
-
-          {/* Additional Information */}
-          {(variant.rs_id || variant.transcript_id || variant.protein_change) && (
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                Additional Information
-              </h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                {variant.rs_id && <InfoItem label="dbSNP ID" value={variant.rs_id} />}
-                {variant.transcript_id && <InfoItem label="Transcript" value={variant.transcript_id} />}
-                {variant.protein_change && <InfoItem label="Protein Change" value={variant.protein_change} />}
-                {variant.gnomad_af !== null && (
-                  <InfoItem label="gnomAD AF" value={variant.gnomad_af.toExponential(3)} />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Metadata */}
-          <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Created: {new Date(variant.created_at).toLocaleString()}
-            </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">ID: {variant.id}</p>
-          </div>
-        </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -207,19 +244,44 @@ interface InfoItemProps {
   label: string
   value: string | number
   highlight?: boolean
+  mono?: boolean
+  icon?: React.ReactNode
+  clinvar?: string | null
 }
 
-function InfoItem({ label, value, highlight }: InfoItemProps) {
+function InfoItem({ label, value, highlight, mono, icon, clinvar }: InfoItemProps) {
+  const getClinvarColor = (sig: string | null) => {
+    if (!sig) return ''
+    const s = sig.toLowerCase()
+    if (s.includes('pathogenic') && !s.includes('likely')) return 'text-dna-magenta'
+    if (s.includes('likely') && s.includes('pathogenic')) return 'text-amber-400'
+    if (s.includes('benign') && !s.includes('likely')) return 'text-dna-green'
+    if (s.includes('likely') && s.includes('benign')) return 'text-green-400'
+    return 'text-dna-amber'
+  }
+
   return (
-    <div className="bg-white dark:bg-slate-850 rounded-lg p-3 border border-slate-200 dark:border-slate-700 transition-colors duration-200">
-      <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{label}</p>
+    <motion.div
+      className="glass-panel rounded-lg p-3 border border-slate-700/30 hover:border-dna-cyan/20 transition-all duration-200 group
+        hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,212,255,0.08)]"
+      whileHover={{ y: -2 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+    >
+      <div className="flex items-center gap-1.5 mb-1">
+        {icon && <span className="text-dna-cyan">{icon}</span>}
+        <p className="text-xs text-slate-500 font-body">{label}</p>
+      </div>
       <p
         className={`font-medium ${
-          highlight ? 'text-red-700 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'
-        }`}
+          clinvar
+            ? getClinvarColor(clinvar)
+            : highlight
+            ? 'text-dna-cyan'
+            : 'text-slate-100'
+        } ${mono ? 'font-mono-variant' : 'font-body'}`}
       >
         {value}
       </p>
-    </div>
+    </motion.div>
   )
 }

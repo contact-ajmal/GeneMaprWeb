@@ -2,25 +2,190 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Google Fonts */
+@import '@fontsource/outfit/400.css';
+@import '@fontsource/outfit/600.css';
+@import '@fontsource/outfit/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/700.css';
+@import '@fontsource/plus-jakarta-sans/400.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* GeneMapr Design System v2.0 */
+  font-family: 'Plus Jakarta Sans', sans-serif;
   line-height: 1.5;
   font-weight: 400;
+
+  /* Dark theme by default */
+  color-scheme: dark;
+
+  /* Smooth scroll */
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  background: #0a0e1a;
+  color: #e2e8f0;
+
+  /* Noise texture overlay for depth */
+  background-image:
+    radial-gradient(at 0% 0%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(255, 51, 102, 0.05) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  background-attachment: fixed;
+  background-size: cover;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(20, 27, 45, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.5);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 212, 255, 0.3) rgba(20, 27, 45, 0.3);
+}
+
+/* Custom text selection */
+::selection {
+  background: rgba(0, 212, 255, 0.3);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background: rgba(0, 212, 255, 0.3);
+  color: #ffffff;
+}
+
+/* Custom focus styles */
+:focus-visible {
+  outline: 2px solid #00d4ff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.1);
+}
+
+/* Remove default focus styles */
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Smooth color transitions for theme switching */
 * {
-  transition-property: background-color, border-color, color;
+  transition-property: background-color, border-color, color, box-shadow;
   transition-duration: 200ms;
-  transition-timing-function: ease-in-out;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Preserve other transitions */
+/* Preserve intentional transitions */
 *[class*="transition-"] {
   transition-property: all;
+}
+
+/* Disable transitions on animations */
+*[class*="animate-"] {
+  transition: none !important;
+}
+
+/* Glassmorphism utility classes */
+@layer components {
+  .glass-panel {
+    background: rgba(20, 27, 45, 0.45);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 212, 255, 0.1);
+  }
+
+  .glass-panel-elevated {
+    background: rgba(26, 35, 50, 0.55);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 212, 255, 0.15);
+  }
+
+  .glass-panel-interactive {
+    background: rgba(20, 27, 45, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+  }
+
+  /* Gradient text effect */
+  .gradient-text {
+    background: linear-gradient(135deg, #00d4ff 0%, #ff3366 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glow text effect */
+  .glow-text {
+    text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+}
+
+/* Typography utilities */
+@layer utilities {
+  .font-headline {
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .font-body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  .font-mono-variant {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* DNA Helix perspective container */
+.perspective-container {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+/* Hide elements on print */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Loading skeleton shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(20, 27, 45, 0.5) 0%,
+    rgba(0, 212, 255, 0.1) 50%,
+    rgba(20, 27, 45, 0.5) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
 }
