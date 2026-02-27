@@ -13,7 +13,8 @@ import DecodeText from '../components/ui/DecodeText'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { useToast } from '../components/ui/Toast'
 import { useScrollReveal, scrollRevealVariants } from '../hooks/useScrollReveal'
-import { Download, TrendingUp, AlertTriangle, HelpCircle, Activity, CheckCircle2 } from 'lucide-react'
+import ReportGeneratorModal from '../components/ReportGeneratorModal'
+import { Download, TrendingUp, AlertTriangle, HelpCircle, Activity, CheckCircle2, FileText } from 'lucide-react'
 
 const PAGE_SIZE = 50
 
@@ -64,6 +65,7 @@ export default function DashboardPage() {
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [exportSuccess, setExportSuccess] = useState(false)
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const { toast } = useToast()
 
   // Fetch variant stats for KPI cards
@@ -183,12 +185,22 @@ export default function DashboardPage() {
             </motion.p>
           </div>
 
-          {/* CSV Export Button */}
+          {/* Toolbar Buttons */}
           <motion.div
+            className="flex items-center space-x-3"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3, duration: 0.4 }}
           >
+            <AnimatedButton
+              onClick={() => setIsReportModalOpen(true)}
+              disabled={!data?.variants.length}
+              variant="primary"
+              className="flex items-center space-x-2"
+            >
+              <FileText className="w-5 h-5" />
+              <span>Generate Report</span>
+            </AnimatedButton>
             <AnimatedButton
               onClick={handleExport}
               disabled={isExporting || !data?.variants.length}
@@ -351,6 +363,13 @@ export default function DashboardPage() {
 
       {/* Variant Detail Modal */}
       <VariantDetailModal variant={selectedVariant} onClose={() => setSelectedVariant(null)} />
+
+      {/* Report Generator Modal */}
+      <ReportGeneratorModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        variantCount={data?.total || 0}
+      />
     </PageTransition>
   )
 }
