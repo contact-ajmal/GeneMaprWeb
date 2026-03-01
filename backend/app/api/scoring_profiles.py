@@ -4,6 +4,7 @@ from sqlalchemy import select, func
 from uuid import UUID
 
 from app.core.database import get_db
+from app.core.deps import get_current_user
 from app.models.scoring_profile import ScoringProfile
 from app.models.variant import Variant
 from app.schemas.scoring_profile import (
@@ -15,7 +16,11 @@ from app.schemas.scoring_profile import (
 )
 from app.services.scoring_service import calculate_variant_score
 
-router = APIRouter(prefix="/scoring-profiles", tags=["scoring-profiles"])
+router = APIRouter(
+    prefix="/scoring-profiles",
+    tags=["scoring-profiles"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 # Default profile seed data

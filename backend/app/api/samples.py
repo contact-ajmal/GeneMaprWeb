@@ -12,6 +12,8 @@ import io
 import uuid as uuid_mod
 
 from app.core.database import get_db, AsyncSessionLocal
+from app.core.deps import get_current_user
+from app.models.user import User
 from app.models.sample import Sample
 from app.models.variant import Variant
 from app.schemas.sample import (
@@ -32,7 +34,11 @@ from app.services.vcf_parser import parse_and_store_vcf
 from app.services.annotation_service import annotate_variants_by_upload_id
 from app.services.comparison_service import compare_samples
 
-router = APIRouter(prefix="/samples", tags=["samples"])
+router = APIRouter(
+    prefix="/samples",
+    tags=["samples"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 async def _compute_sample_stats(sample_id: UUID, db: AsyncSession) -> dict:
@@ -143,6 +149,7 @@ async def upload_vcf_with_sample(
     relationship_type: str = Form(None),
     description: str = Form(None),
     sample_type: str = Form("germline"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload a VCF file associated with a named sample."""
@@ -187,6 +194,7 @@ async def upload_vcf_with_sample(
             status="processing",
             upload_id=upload_id,
             file_size_bytes=file_size,
+            user_id=current_user.id,
         )
         db.add(sample)
         await db.flush()
@@ -258,10 +266,15 @@ async def list_samples(
     sort_order: str = Query("desc", description="Sort direction: asc or desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all samples with pagination, search, and filtering."""
     query = select(Sample)
+
+    # Scope to current user's samples (admins see all)
+    if current_user.role != "admin":
+        query = query.where(Sample.user_id == current_user.id)
 
     # Search
     if search:

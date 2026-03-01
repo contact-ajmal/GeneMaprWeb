@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.core.database import get_db, AsyncSessionLocal
+from app.core.deps import get_current_user
 from app.models.variant import Variant
 from app.schemas.report import (
     ReportRequest,
@@ -32,7 +33,11 @@ from app.services.report_service import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter(
+    prefix="/reports",
+    tags=["reports"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.post("/generate", response_model=ReportGenerateResponse)

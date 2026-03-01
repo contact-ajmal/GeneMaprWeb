@@ -13,6 +13,7 @@ import csv
 import io
 
 from app.core.database import get_db
+from app.core.deps import get_current_user
 from app.models.variant import Variant
 from app.schemas.variant import (
     VariantResponse,
@@ -51,7 +52,11 @@ from app.services.annotation_service import annotate_variants_by_upload_id
 from app.services.acmg_service import assess_acmg_criteria
 from app.services.gnomad_service import get_population_frequencies
 
-router = APIRouter(prefix="/variants", tags=["variants"])
+router = APIRouter(
+    prefix="/variants",
+    tags=["variants"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.post("/upload", response_model=UploadResponse)

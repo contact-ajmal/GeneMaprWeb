@@ -5,6 +5,8 @@ import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import { ToastProvider } from './components/ui/Toast'
 import { ActiveSampleProvider } from './contexts/ActiveSampleContext'
+import { AuthProvider } from './contexts/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
 import ChatPanel from './components/ChatPanel'
 import VariantEvidenceWorkspace from './components/VariantEvidenceWorkspace'
 import { SkeletonPage } from './components/ui/Skeleton'
@@ -20,6 +22,9 @@ const ComparePage = lazy(() => import('./pages/ComparePage'))
 const GenomeViewPage = lazy(() => import('./pages/GenomeViewPage'))
 const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 const SampleManagerPage = lazy(() => import('./pages/SampleManagerPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 function App() {
   const location = useLocation()
@@ -40,31 +45,45 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <ToastProvider>
-        <ActiveSampleProvider>
-          <Layout onVariantSelect={handleVariantSelect}>
-            <Suspense fallback={<SkeletonPage />}>
-              <AnimatePresence mode="wait">
-                <Routes location={location} key={location.pathname}>
-                  <Route path="/" element={<UploadPage />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/samples" element={<SampleManagerPage />} />
-                  <Route path="/genome-view" element={<GenomeViewPage />} />
-                  <Route path="/analytics" element={<AnalyticsPage />} />
-                  <Route path="/pharmacogenomics" element={<PharmacogenomicsPage />} />
-                  <Route path="/compare" element={<ComparePage />} />
-                  <Route path="/reports" element={<ReportsPage />} />
-                </Routes>
-              </AnimatePresence>
-            </Suspense>
-          </Layout>
-          <ChatPanel onVariantClick={handleVariantClick} />
-          <VariantEvidenceWorkspace
-            variant={chatVariant}
-            onClose={() => setChatVariant(null)}
-          />
-        </ActiveSampleProvider>
-      </ToastProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <Suspense fallback={<SkeletonPage />}>
+            <AnimatePresence mode="wait">
+              <Routes location={location} key={location.pathname}>
+                {/* Public routes */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+
+                {/* Protected routes */}
+                <Route path="/*" element={
+                  <ProtectedRoute>
+                    <ActiveSampleProvider>
+                      <Layout onVariantSelect={handleVariantSelect}>
+                        <Routes>
+                          <Route path="/" element={<UploadPage />} />
+                          <Route path="/dashboard" element={<DashboardPage />} />
+                          <Route path="/samples" element={<SampleManagerPage />} />
+                          <Route path="/genome-view" element={<GenomeViewPage />} />
+                          <Route path="/analytics" element={<AnalyticsPage />} />
+                          <Route path="/pharmacogenomics" element={<PharmacogenomicsPage />} />
+                          <Route path="/compare" element={<ComparePage />} />
+                          <Route path="/reports" element={<ReportsPage />} />
+                          <Route path="/settings" element={<SettingsPage />} />
+                        </Routes>
+                      </Layout>
+                      <ChatPanel onVariantClick={handleVariantClick} />
+                      <VariantEvidenceWorkspace
+                        variant={chatVariant}
+                        onClose={() => setChatVariant(null)}
+                      />
+                    </ActiveSampleProvider>
+                  </ProtectedRoute>
+                } />
+              </Routes>
+            </AnimatePresence>
+          </Suspense>
+        </ToastProvider>
+      </AuthProvider>
     </ErrorBoundary>
   )
 }

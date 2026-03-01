@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Integer, Float, DateTime, Text, func
+from sqlalchemy import String, Integer, Float, DateTime, Text, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -58,6 +58,15 @@ class Sample(Base):
         UUID(as_uuid=True), nullable=True
     )
     scoring_profile_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    # User ownership
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    user = relationship("User", back_populates="samples")
 
     # Relationship to variants
     variants = relationship("Variant", back_populates="sample", lazy="selectin", cascade="all, delete-orphan")

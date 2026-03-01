@@ -7,6 +7,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.core.database import init_db
 import app.models.scoring_profile  # noqa: F401 - ensure model is registered with Base
 import app.models.sample  # noqa: F401 - ensure model is registered with Base
+import app.models.user  # noqa: F401 - ensure model is registered with Base
+import app.models.custom_role  # noqa: F401 - ensure model is registered with Base
 from app.core.redis import init_redis, close_redis
 from app.core.config import settings
 from app.api.variants import router as variants_router
@@ -15,6 +17,8 @@ from app.api.reports import router as reports_router
 from app.api.pharmacogenomics import router as pharmacogenomics_router
 from app.api.scoring_profiles import router as scoring_profiles_router, seed_default_profiles
 from app.api.samples import router as samples_router
+from app.api.auth import router as auth_router
+from app.api.admin import router as admin_router
 from app.middleware import (
     LoggingMiddleware,
     configure_logging,
@@ -22,6 +26,27 @@ from app.middleware import (
     validation_exception_handler,
     generic_exception_handler,
 )
+
+
+async def seed_admin_user():
+    """Seed a default admin user if none exists."""
+    from sqlalchemy import select
+    from app.core.database import AsyncSessionLocal
+    from app.models.user import User
+    from app.services.auth_service import hash_password
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(User).where(User.role == "admin"))
+        if result.scalar_one_or_none() is None:
+            admin = User(
+                email="admin@genemapr.io",
+                full_name="GeneMapr Admin",
+                hashed_password=hash_password("GeneMapr2024!"),
+                role="admin",
+                is_active=True,
+            )
+            db.add(admin)
+            await db.commit()
 
 
 @asynccontextmanager
@@ -37,6 +62,8 @@ async def lifespan(app: FastAPI):
     from app.core.database import AsyncSessionLocal
     async with AsyncSessionLocal() as db:
         await seed_default_profiles(db)
+    # Seed default admin user
+    await seed_admin_user()
     yield
     # Shutdown
     await close_redis()
@@ -67,6 +94,8 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(variants_router)
 app.include_router(chat_router)
 app.include_router(reports_router)

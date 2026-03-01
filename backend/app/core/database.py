@@ -36,14 +36,13 @@ async def get_db() -> AsyncSession:
 async def init_db():
     """Initialize database tables.
 
-    Drops and recreates the samples table to apply schema changes.
-    Variants with sample_id references are preserved if samples table exists;
-    otherwise they start fresh.
+    Creates new tables (including users) and applies schema migrations
+    for existing tables (adds user_id to samples if missing).
     """
     from sqlalchemy import text, inspect
 
     async with engine.begin() as conn:
-        # Check if samples table needs migration (check for new column)
+        # Check if samples table needs original_filename migration
         def _needs_migration(sync_conn):
             insp = inspect(sync_conn)
             if not insp.has_table("samples"):
@@ -54,7 +53,26 @@ async def init_db():
         needs_migration = await conn.run_sync(_needs_migration)
 
         if needs_migration:
-            # Drop samples table (cascade will handle variants FK)
             await conn.execute(text("DROP TABLE IF EXISTS samples CASCADE"))
 
+        # Create all tables (including new 'users' table)
         await conn.run_sync(Base.metadata.create_all)
+
+        # Add user_id column to samples if not present (migration)
+        def _needs_user_id(sync_conn):
+            insp = inspect(sync_conn)
+            if not insp.has_table("samples"):
+                return False
+            columns = [c["name"] for c in insp.get_columns("samples")]
+            return "user_id" not in columns
+
+        needs_user_id = await conn.run_sync(_needs_user_id)
+        if needs_user_id:
+            await conn.execute(text(
+                "ALTER TABLE samples ADD COLUMN user_id UUID "
+                "REFERENCES users(id) ON DELETE CASCADE"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_samples_user_id ON samples(user_id)"
+            ))
+

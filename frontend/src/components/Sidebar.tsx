@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '../contexts/ThemeContext'
+import { useAuth } from '../contexts/AuthContext'
 import DecodeText from './ui/DecodeText'
 import {
   LayoutDashboard,
@@ -18,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
+  LogOut,
 } from 'lucide-react'
 
 const navItems = [
@@ -38,9 +40,16 @@ export { SIDEBAR_EXPANDED_WIDTH, SIDEBAR_COLLAPSED_WIDTH }
 
 export default function Sidebar() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
+  const { user, logout } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   // Persist sidebar state
   useEffect(() => {
@@ -226,12 +235,14 @@ export default function Sidebar() {
         </motion.button>
 
         {/* Settings */}
-        <motion.button
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg
-            text-slate-500 hover:text-slate-300 hover:bg-white/5
-            font-body text-sm transition-colors"
-          whileHover={{ x: 2 }}
-          whileTap={{ scale: 0.98 }}
+        <Link
+          to="/settings"
+          className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg
+            font-body text-sm transition-colors
+            ${location.pathname === '/settings'
+              ? 'text-dna-cyan bg-dna-cyan/10'
+              : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+            }`}
           aria-label="Settings"
         >
           <Settings className="w-5 h-5 flex-shrink-0" />
@@ -248,9 +259,9 @@ export default function Sidebar() {
               </motion.span>
             )}
           </AnimatePresence>
-        </motion.button>
+        </Link>
 
-        {/* User Avatar Placeholder */}
+        {/* User Info + Logout */}
         <div className="flex items-center gap-3 px-3 py-2.5 mt-2 rounded-lg
           bg-white/5 border border-dna-cyan/10">
           <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gradient-to-br from-dna-cyan/30 to-dna-magenta/30
@@ -260,15 +271,30 @@ export default function Sidebar() {
           <AnimatePresence>
             {expanded && (
               <motion.div
-                className="overflow-hidden whitespace-nowrap min-w-0"
+                className="overflow-hidden whitespace-nowrap min-w-0 flex-1"
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.15 }}
               >
-                <p className="text-xs font-body text-slate-300 truncate">Researcher</p>
-                <p className="text-[10px] text-slate-500 font-mono">GeneMapr Pro</p>
+                <p className="text-xs font-body text-slate-300 truncate">{user?.full_name || 'User'}</p>
+                <p className="text-[10px] text-slate-500 font-mono capitalize">{user?.role || 'researcher'}</p>
               </motion.div>
+            )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {expanded && (
+              <motion.button
+                onClick={handleLogout}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-dna-magenta
+                  hover:bg-dna-magenta/10 transition-colors flex-shrink-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </motion.button>
             )}
           </AnimatePresence>
         </div>

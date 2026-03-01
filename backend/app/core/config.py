@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
 
+    # JWT Authentication
+    jwt_secret_key: str = "change-me-in-production-use-a-long-random-string"
+    access_token_expire_minutes: int = 1440  # 24 hours
+
     # CORS - comma-separated list of allowed origins
     cors_origins: str = "*"
 

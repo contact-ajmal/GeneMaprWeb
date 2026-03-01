@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.deps import get_current_user
 from app.schemas.pharmacogenomics import (
     PharmacogenomicsResponse,
     GeneReference,
@@ -19,7 +20,11 @@ from app.services.pharmacogenomics_service import (
     DRUG_GENE_MAP,
 )
 
-router = APIRouter(prefix="/pharmacogenomics", tags=["pharmacogenomics"])
+router = APIRouter(
+    prefix="/pharmacogenomics",
+    tags=["pharmacogenomics"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("", response_model=PharmacogenomicsResponse)
