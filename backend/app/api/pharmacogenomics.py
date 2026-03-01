@@ -4,7 +4,8 @@ Pharmacogenomics API endpoint.
 Returns PGx-relevant variants, drug interactions, gene summaries, and
 a full allele reference table from the knowledge base.
 """
-from fastapi import APIRouter, Depends
+from uuid import UUID
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -22,7 +23,10 @@ router = APIRouter(prefix="/pharmacogenomics", tags=["pharmacogenomics"])
 
 
 @router.get("", response_model=PharmacogenomicsResponse)
-async def get_pharmacogenomics(db: AsyncSession = Depends(get_db)):
+async def get_pharmacogenomics(
+    sample_id: UUID | None = Query(None, description="Filter by sample ID"),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Retrieve pharmacogenomic analysis for all annotated variants.
 
@@ -30,7 +34,7 @@ async def get_pharmacogenomics(db: AsyncSession = Depends(get_db)):
     recommendations, per-gene metabolizer summaries, and the full
     allele function reference table.
     """
-    report = await get_pgx_data_for_all_variants(db)
+    report = await get_pgx_data_for_all_variants(db, sample_id=sample_id)
 
     # Build allele reference from the knowledge base
     allele_reference: list[GeneReference] = []

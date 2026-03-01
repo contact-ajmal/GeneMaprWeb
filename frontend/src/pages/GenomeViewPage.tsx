@@ -10,14 +10,16 @@ import GlassCard from '../components/ui/GlassCard'
 import DecodeText from '../components/ui/DecodeText'
 import { Dna } from 'lucide-react'
 import apiClient from '../api/client'
+import { useActiveSample } from '../contexts/ActiveSampleContext'
 
 export default function GenomeViewPage() {
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null)
   const [filters] = useState<VariantFilters>({})
+  const { primarySampleId } = useActiveSample()
 
   const { data: genomeData, isLoading } = useQuery({
-    queryKey: ['genomeView', filters],
-    queryFn: () => getGenomeView(filters),
+    queryKey: ['genomeView', filters, primarySampleId],
+    queryFn: () => getGenomeView(filters, primarySampleId),
     staleTime: 1000 * 60 * 5,
   })
 

@@ -598,12 +598,14 @@ def generate_pgx_report(variants: list[Variant]) -> dict[str, Any]:
     }
 
 
-async def get_pgx_data_for_all_variants(db: AsyncSession) -> dict[str, Any]:
+async def get_pgx_data_for_all_variants(db: AsyncSession, sample_id=None) -> dict[str, Any]:
     """
     Fetch all annotated variants from DB and generate PGx report.
     This is the main entry point called by the API endpoint.
     """
     query = select(Variant)
+    if sample_id is not None:
+        query = query.where(Variant.sample_id == sample_id)
     result = await db.execute(query)
     variants = list(result.scalars().all())
 

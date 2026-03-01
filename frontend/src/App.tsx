@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import { ToastProvider } from './components/ui/Toast'
+import { ActiveSampleProvider } from './contexts/ActiveSampleContext'
 import ChatPanel from './components/ChatPanel'
 import VariantEvidenceWorkspace from './components/VariantEvidenceWorkspace'
 import { SkeletonPage } from './components/ui/Skeleton'
@@ -18,6 +19,7 @@ const PharmacogenomicsPage = lazy(() => import('./pages/PharmacogenomicsPage'))
 const ComparePage = lazy(() => import('./pages/ComparePage'))
 const GenomeViewPage = lazy(() => import('./pages/GenomeViewPage'))
 const ReportsPage = lazy(() => import('./pages/ReportsPage'))
+const SampleManagerPage = lazy(() => import('./pages/SampleManagerPage'))
 
 function App() {
   const location = useLocation()
@@ -39,26 +41,29 @@ function App() {
   return (
     <ErrorBoundary>
       <ToastProvider>
-        <Layout onVariantSelect={handleVariantSelect}>
-          <Suspense fallback={<SkeletonPage />}>
-            <AnimatePresence mode="wait">
-              <Routes location={location} key={location.pathname}>
-                <Route path="/" element={<UploadPage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/genome-view" element={<GenomeViewPage />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
-                <Route path="/pharmacogenomics" element={<PharmacogenomicsPage />} />
-                <Route path="/compare" element={<ComparePage />} />
-                <Route path="/reports" element={<ReportsPage />} />
-              </Routes>
-            </AnimatePresence>
-          </Suspense>
-        </Layout>
-        <ChatPanel onVariantClick={handleVariantClick} />
-        <VariantEvidenceWorkspace
-          variant={chatVariant}
-          onClose={() => setChatVariant(null)}
-        />
+        <ActiveSampleProvider>
+          <Layout onVariantSelect={handleVariantSelect}>
+            <Suspense fallback={<SkeletonPage />}>
+              <AnimatePresence mode="wait">
+                <Routes location={location} key={location.pathname}>
+                  <Route path="/" element={<UploadPage />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/samples" element={<SampleManagerPage />} />
+                  <Route path="/genome-view" element={<GenomeViewPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/pharmacogenomics" element={<PharmacogenomicsPage />} />
+                  <Route path="/compare" element={<ComparePage />} />
+                  <Route path="/reports" element={<ReportsPage />} />
+                </Routes>
+              </AnimatePresence>
+            </Suspense>
+          </Layout>
+          <ChatPanel onVariantClick={handleVariantClick} />
+          <VariantEvidenceWorkspace
+            variant={chatVariant}
+            onClose={() => setChatVariant(null)}
+          />
+        </ActiveSampleProvider>
       </ToastProvider>
     </ErrorBoundary>
   )

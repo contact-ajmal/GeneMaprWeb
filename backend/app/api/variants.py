@@ -98,7 +98,10 @@ async def upload_vcf(
 
 
 @router.get("/stats", response_model=VariantStatsResponse)
-async def get_variant_stats(db: AsyncSession = Depends(get_db)):
+async def get_variant_stats(
+    sample_id: UUID | None = Query(None, description="Filter by sample ID"),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Get aggregated statistics from the current dataset.
 
@@ -112,8 +115,16 @@ async def get_variant_stats(db: AsyncSession = Depends(get_db)):
     - Distribution by risk score ranges
     - Distribution by allele frequency ranges
     """
+    # Helper to apply sample filter
+    def _sample_filter(q):
+        if sample_id:
+            return q.where(Variant.sample_id == sample_id)
+        return q
+
     # Get total variants
-    total_result = await db.execute(select(func.count()).select_from(Variant))
+    total_result = await db.execute(
+        _sample_filter(select(func.count()).select_from(Variant))
+    )
     total_variants = total_result.scalar_one()
 
     if total_variants == 0:
@@ -137,60 +148,76 @@ async def get_variant_stats(db: AsyncSession = Depends(get_db)):
 
     # Count by ClinVar significance
     pathogenic_result = await db.execute(
-        select(func.count()).select_from(Variant)
-        .where(Variant.clinvar_significance.ilike('%pathogenic%'))
-        .where(~Variant.clinvar_significance.ilike('%likely%'))
+        _sample_filter(
+            select(func.count()).select_from(Variant)
+            .where(Variant.clinvar_significance.ilike('%pathogenic%'))
+            .where(~Variant.clinvar_significance.ilike('%likely%'))
+        )
     )
     pathogenic_count = pathogenic_result.scalar_one()
 
     likely_pathogenic_result = await db.execute(
-        select(func.count()).select_from(Variant)
-        .where(Variant.clinvar_significance.ilike('%likely pathogenic%'))
+        _sample_filter(
+            select(func.count()).select_from(Variant)
+            .where(Variant.clinvar_significance.ilike('%likely pathogenic%'))
+        )
     )
     likely_pathogenic_count = likely_pathogenic_result.scalar_one()
 
     vus_result = await db.execute(
-        select(func.count()).select_from(Variant)
-        .where(Variant.clinvar_significance.ilike('%uncertain%'))
+        _sample_filter(
+            select(func.count()).select_from(Variant)
+            .where(Variant.clinvar_significance.ilike('%uncertain%'))
+        )
     )
     vus_count = vus_result.scalar_one()
 
     benign_result = await db.execute(
-        select(func.count()).select_from(Variant)
-        .where(Variant.clinvar_significance.ilike('%benign%'))
+        _sample_filter(
+            select(func.count()).select_from(Variant)
+            .where(Variant.clinvar_significance.ilike('%benign%'))
+        )
     )
     benign_count = benign_result.scalar_one()
 
     # High risk count (risk_score >= 8)
     high_risk_result = await db.execute(
-        select(func.count()).select_from(Variant)
-        .where(Variant.risk_score >= 8)
+        _sample_filter(
+            select(func.count()).select_from(Variant)
+            .where(Variant.risk_score >= 8)
+        )
     )
     high_risk_count = high_risk_result.scalar_one()
 
     # Mean risk score
     mean_risk_result = await db.execute(
-        select(func.avg(Variant.risk_score))
-        .where(Variant.risk_score.isnot(None))
+        _sample_filter(
+            select(func.avg(Variant.risk_score))
+            .where(Variant.risk_score.isnot(None))
+        )
     )
     mean_risk_score = float(mean_risk_result.scalar_one() or 0.0)
 
     # Mean allele frequency
     mean_af_result = await db.execute(
-        select(func.avg(Variant.gnomad_af))
-        .where(Variant.gnomad_af.isnot(None))
+        _sample_filter(
+            select(func.avg(Variant.gnomad_af))
+            .where(Variant.gnomad_af.isnot(None))
+        )
     )
     mean_allele_frequency = float(mean_af_result.scalar_one() or 0.0)
 
     # Unique genes
     unique_genes_result = await db.execute(
-        select(func.count(func.distinct(Variant.gene_symbol)))
-        .where(Variant.gene_symbol.isnot(None))
+        _sample_filter(
+            select(func.count(func.distinct(Variant.gene_symbol)))
+            .where(Variant.gene_symbol.isnot(None))
+        )
     )
     unique_genes = unique_genes_result.scalar_one()
 
     # Top 10 genes by variant count with max risk score
-    top_genes_result = await db.execute(
+    top_genes_q = (
         select(
             Variant.gene_symbol,
             func.count(Variant.id).label('count'),
@@ -201,13 +228,16 @@ async def get_variant_stats(db: AsyncSession = Depends(get_db)):
         .order_by(func.count(Variant.id).desc())
         .limit(10)
     )
+    if sample_id:
+        top_genes_q = top_genes_q.where(Variant.sample_id == sample_id)
+    top_genes_result = await db.execute(top_genes_q)
     top_genes = [
         TopGene(gene=row[0], count=row[1], max_risk=row[2] or 0)
         for row in top_genes_result.all()
     ]
 
     # Consequence distribution
-    consequence_result = await db.execute(
+    cons_q = (
         select(
             Variant.consequence,
             func.count(Variant.id).label('count')
@@ -216,13 +246,16 @@ async def get_variant_stats(db: AsyncSession = Depends(get_db)):
         .group_by(Variant.consequence)
         .order_by(func.count(Variant.id).desc())
     )
+    if sample_id:
+        cons_q = cons_q.where(Variant.sample_id == sample_id)
+    consequence_result = await db.execute(cons_q)
     consequence_distribution = [
         DistributionItem(name=row[0], count=row[1])
         for row in consequence_result.all()
     ]
 
     # ClinVar distribution
-    clinvar_result = await db.execute(
+    clinvar_q = (
         select(
             Variant.clinvar_significance,
             func.count(Variant.id).label('count')
@@ -231,6 +264,9 @@ async def get_variant_stats(db: AsyncSession = Depends(get_db)):
         .group_by(Variant.clinvar_significance)
         .order_by(func.count(Variant.id).desc())
     )
+    if sample_id:
+        clinvar_q = clinvar_q.where(Variant.sample_id == sample_id)
+    clinvar_result = await db.execute(clinvar_q)
     clinvar_distribution = [
         DistributionItem(name=row[0], count=row[1])
         for row in clinvar_result.all()
@@ -246,16 +282,17 @@ async def get_variant_stats(db: AsyncSession = Depends(get_db)):
     risk_score_distribution = []
     for range_name, min_val, max_val in risk_ranges:
         if max_val == float('inf'):
-            count_result = await db.execute(
+            rq = _sample_filter(
                 select(func.count()).select_from(Variant)
                 .where(Variant.risk_score >= min_val)
             )
         else:
-            count_result = await db.execute(
+            rq = _sample_filter(
                 select(func.count()).select_from(Variant)
                 .where(Variant.risk_score >= min_val)
                 .where(Variant.risk_score <= max_val)
             )
+        count_result = await db.execute(rq)
         count = count_result.scalar_one()
         if count > 0:
             risk_score_distribution.append(DistributionItem(name=range_name, count=count))
@@ -270,16 +307,17 @@ async def get_variant_stats(db: AsyncSession = Depends(get_db)):
     af_distribution = []
     for range_name, min_val, max_val in af_ranges:
         if max_val == float('inf'):
-            count_result = await db.execute(
+            aq = _sample_filter(
                 select(func.count()).select_from(Variant)
                 .where(Variant.gnomad_af >= min_val)
             )
         else:
-            count_result = await db.execute(
+            aq = _sample_filter(
                 select(func.count()).select_from(Variant)
                 .where(Variant.gnomad_af >= min_val)
                 .where(Variant.gnomad_af < max_val)
             )
+        count_result = await db.execute(aq)
         count = count_result.scalar_one()
         if count > 0:
             af_distribution.append(DistributionItem(name=range_name, count=count))
@@ -312,6 +350,7 @@ async def get_variants(
     consequence: str | None = Query(None, description="Filter by consequence type"),
     min_score: int | None = Query(None, ge=0, description="Minimum risk score"),
     max_score: int | None = Query(None, ge=0, description="Maximum risk score"),
+    sample_id: UUID | None = Query(None, description="Filter by sample ID"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -324,11 +363,16 @@ async def get_variants(
     - consequence: Consequence type (partial match)
     - min_score: Minimum risk score
     - max_score: Maximum risk score
+    - sample_id: Filter to a specific sample
 
     Returns variants with pagination support.
     """
     # Build base query with filters
     query = select(Variant)
+
+    # Sample filter
+    if sample_id:
+        query = query.where(Variant.sample_id == sample_id)
 
     # Apply filters
     if gene:
@@ -382,23 +426,15 @@ async def export_variants_csv(
     consequence: str | None = Query(None, description="Filter by consequence type"),
     min_score: int | None = Query(None, ge=0, description="Minimum risk score"),
     max_score: int | None = Query(None, ge=0, description="Maximum risk score"),
+    sample_id: UUID | None = Query(None, description="Filter by sample ID"),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Export filtered variants as CSV.
-
-    Supports the same filters as GET /variants:
-    - gene: Gene symbol (exact match)
-    - significance: ClinVar significance (partial match)
-    - af_max: Maximum gnomAD allele frequency
-    - consequence: Consequence type (partial match)
-    - min_score: Minimum risk score
-    - max_score: Maximum risk score
-
-    Returns a CSV file with all matching variants.
-    """
+    """Export filtered variants as CSV."""
     # Build query with same filters as get_variants
     query = select(Variant)
+
+    if sample_id:
+        query = query.where(Variant.sample_id == sample_id)
 
     # Apply filters
     if gene:
@@ -504,6 +540,7 @@ async def get_genome_view(
     consequence: str | None = Query(None, description="Filter by consequence type"),
     min_score: int | None = Query(None, ge=0, description="Minimum risk score"),
     max_score: int | None = Query(None, ge=0, description="Maximum risk score"),
+    sample_id: UUID | None = Query(None, description="Filter by sample ID"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -512,6 +549,9 @@ async def get_genome_view(
     Returns annotations array and per-chromosome summary statistics.
     """
     query = select(Variant)
+
+    if sample_id:
+        query = query.where(Variant.sample_id == sample_id)
 
     if gene:
         query = query.where(Variant.gene_symbol == gene)

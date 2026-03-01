@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import DecodeText from './ui/DecodeText'
 import {
   LayoutDashboard,
+  Database,
   Dna,
   Activity,
   Pill,
@@ -21,6 +22,7 @@ import {
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/samples', label: 'Sample Workspace', icon: Database },
   { path: '/genome-view', label: 'Genome View', icon: Dna },
   { path: '/analytics', label: 'Genome Analytics', icon: Activity },
   { path: '/pharmacogenomics', label: 'Pharmacogenomics', icon: Pill },

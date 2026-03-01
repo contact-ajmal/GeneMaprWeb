@@ -2,20 +2,20 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard,
+  Database,
   Dna,
-  Activity,
   Pill,
   GitCompareArrows,
   Upload,
 } from 'lucide-react'
 
 const mobileNavItems = [
-  { path: '/', label: 'Upload', icon: Upload },
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/samples', label: 'Samples', icon: Database },
   { path: '/genome-view', label: 'Genome', icon: Dna },
-  { path: '/analytics', label: 'Analytics', icon: Activity },
   { path: '/pharmacogenomics', label: 'PGx', icon: Pill },
   { path: '/compare', label: 'Compare', icon: GitCompareArrows },
+  { path: '/', label: 'Upload', icon: Upload },
 ]
 
 export default function MobileNav() {

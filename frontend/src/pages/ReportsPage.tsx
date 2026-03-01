@@ -61,7 +61,7 @@ export default function ReportsPage() {
 
   const { data: statsData } = useQuery({
     queryKey: ['variantStats'],
-    queryFn: getVariantStats,
+    queryFn: () => getVariantStats(),
     staleTime: 1000 * 60 * 5,
   })
 

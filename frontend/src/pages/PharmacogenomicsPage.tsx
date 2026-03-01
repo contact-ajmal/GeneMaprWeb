@@ -18,6 +18,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { getPharmacogenomics } from '../api/pharmacogenomics'
+import { useActiveSample } from '../contexts/ActiveSampleContext'
 import GlassCard from '../components/ui/GlassCard'
 import DecodeText from '../components/ui/DecodeText'
 import PageTransition from '../components/PageTransition'
@@ -83,9 +84,11 @@ type SortDir = 'asc' | 'desc'
 // ────────────────────────────────────────────────────────────
 
 export default function PharmacogenomicsPage() {
+  const { primarySampleId } = useActiveSample()
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['pharmacogenomics'],
-    queryFn: getPharmacogenomics,
+    queryKey: ['pharmacogenomics', primarySampleId],
+    queryFn: () => getPharmacogenomics(primarySampleId),
     staleTime: 1000 * 60 * 5,
   })
 

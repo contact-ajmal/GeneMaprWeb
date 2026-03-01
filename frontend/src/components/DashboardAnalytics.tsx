@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { getVariantStats } from '../api/variants'
+import { useActiveSample } from '../contexts/ActiveSampleContext'
 import { Dna, AlertTriangle, HelpCircle, Shield, Flame, Activity, TrendingUp } from 'lucide-react'
 import {
   PieChart,
@@ -86,9 +87,11 @@ function ScrollRevealSection({ children, index = 0 }: { children: React.ReactNod
 }
 
 export default function DashboardAnalytics() {
+  const { primarySampleId } = useActiveSample()
+
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['variantStats'],
-    queryFn: getVariantStats,
+    queryKey: ['variantStats', primarySampleId],
+    queryFn: () => getVariantStats(primarySampleId),
     staleTime: 1000 * 30,
   })
 

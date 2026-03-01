@@ -176,11 +176,88 @@ export interface RescoreResponse {
 export interface Sample {
   id: string
   name: string
-  filename: string
+  original_filename: string
+  description: string | null
   relationship_type: string | null
+  sample_type: string
+  status: string
+
+  // Stats
+  total_variants: number
+  pathogenic_count: number
+  likely_pathogenic_count: number
+  vus_count: number
+  benign_count: number
+  high_risk_count: number
+  mean_risk_score: number | null
+  unique_genes: number
+
+  // File metadata
+  file_size_bytes: number
+  genome_assembly: string
+  vcf_version: string | null
+
+  // Timestamps
+  uploaded_at: string
+  processing_completed_at: string | null
+  last_accessed_at: string | null
+
   upload_id: string
-  created_at: string
-  variant_count: number
+  scoring_profile_id: string | null
+  scoring_profile_name: string | null
+
+  // Computed
+  top_genes: TopGene[]
+}
+
+export interface SampleDetail extends Sample {
+  top_variants: Variant[]
+  chromosome_distribution: Record<string, number>
+  top_affected_genes: TopGene[]
+  clinvar_distribution: DistributionItem[]
+  consequence_distribution: DistributionItem[]
+}
+
+export interface SampleListSummary {
+  total_samples: number
+  total_variants_all: number
+  total_pathogenic_all: number
+  storage_used_bytes: number
+}
+
+export interface SampleListResponse {
+  samples: Sample[]
+  total: number
+  page: number
+  page_size: number
+  summary: SampleListSummary
+}
+
+export interface SampleUpdate {
+  name?: string
+  description?: string
+  relationship_type?: string
+  sample_type?: string
+}
+
+export interface DeleteResponse {
+  deleted_variants: number
+  sample_name: string
+}
+
+export interface BulkDeleteResponse {
+  deleted_samples: number
+  deleted_variants: number
+}
+
+export interface StorageStats {
+  total_samples: number
+  total_variants: number
+  storage_used_mb: number
+  samples_by_status: Record<string, number>
+  samples_by_type: Record<string, number>
+  oldest_sample: { id: string; name: string; uploaded_at: string } | null
+  newest_sample: { id: string; name: string; uploaded_at: string } | null
 }
 
 export interface SampleStats {

@@ -2,7 +2,6 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { uploadVCF } from '../api/variants'
 import { uploadVCFWithSample, getSamples, deleteSample } from '../api/samples'
 import {
   Upload,
@@ -45,25 +44,32 @@ export default function UploadPage() {
   const queryClient = useQueryClient()
 
   // Fetch existing samples
-  const { data: samples } = useQuery({
+  const { data: samplesData } = useQuery({
     queryKey: ['samples'],
-    queryFn: getSamples,
+    queryFn: () => getSamples(),
   })
+  const samples = samplesData?.samples
 
-  // Quick upload (no sample)
+  // Quick upload — still creates a sample with auto-generated name
   const quickUploadMutation = useMutation({
-    mutationFn: uploadVCF,
+    mutationFn: (f: File) => {
+      const autoName = f.name.replace(/\.vcf(\.gz)?$/i, '')
+      return uploadVCFWithSample(f, autoName)
+    },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['samples'] })
+      queryClient.invalidateQueries({ queryKey: ['samples-selector'] })
       setTimeout(() => navigate('/dashboard'), 2000)
     },
   })
 
-  // Sample upload
+  // Sample upload with metadata
   const sampleUploadMutation = useMutation({
     mutationFn: ({ file, name, rel }: { file: File; name: string; rel?: string }) =>
       uploadVCFWithSample(file, name, rel),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['samples'] })
+      queryClient.invalidateQueries({ queryKey: ['samples-selector'] })
       setFile(null)
       setSampleName('')
       setRelationship('')
@@ -454,7 +460,8 @@ export default function UploadPage() {
                         </div>
                         <p className="text-sm font-mono-variant text-slate-300">
                           {sampleUploadMutation.data?.message ||
-                            `${quickUploadMutation.data?.variants_parsed} variants detected`}
+                            quickUploadMutation.data?.message ||
+                            'Upload complete'}
                         </p>
                       </div>
                     </div>
@@ -524,7 +531,7 @@ export default function UploadPage() {
                             {sample.name}
                           </p>
                           <p className="text-xs text-slate-500 font-mono-variant truncate">
-                            {sample.filename}
+                            {sample.original_filename}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
                             {sample.relationship_type && (
@@ -533,7 +540,7 @@ export default function UploadPage() {
                               </span>
                             )}
                             <span className="text-xs text-slate-500 font-mono-variant">
-                              {sample.variant_count} var
+                              {sample.total_variants} var
                             </span>
                           </div>
                         </div>

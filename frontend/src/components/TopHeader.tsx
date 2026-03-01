@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Sliders,
 } from 'lucide-react'
+import ActiveSampleSelector from './ActiveSampleSelector'
 
 interface TopHeaderProps {
   sidebarWidth: number
@@ -16,6 +17,7 @@ interface TopHeaderProps {
 const routeLabels: Record<string, { label: string; parent?: string }> = {
   '/': { label: 'Upload' },
   '/dashboard': { label: 'Dashboard' },
+  '/samples': { label: 'Sample Workspace' },
   '/genome-view': { label: 'Genome View' },
   '/analytics': { label: 'Genome Analytics' },
   '/pharmacogenomics': { label: 'Pharmacogenomics' },
@@ -71,6 +73,9 @@ export default function TopHeader({ sidebarWidth, onOpenCommandPalette, activePr
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
+          {/* Active Sample Selector */}
+          <ActiveSampleSelector />
+
           {/* Active Scoring Profile */}
           {activeProfile && (
             <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg

@@ -60,10 +60,11 @@ export default function ComparePage() {
   const [sortField, setSortField] = useState<'gene' | 'risk_score' | 'samples'>('risk_score')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
-  const { data: samples, isLoading: samplesLoading } = useQuery({
+  const { data: samplesData, isLoading: samplesLoading } = useQuery({
     queryKey: ['samples'],
-    queryFn: getSamples,
+    queryFn: () => getSamples(),
   })
+  const samples = samplesData?.samples
 
   const {
     data: comparison,
@@ -221,7 +222,7 @@ export default function ComparePage() {
                             {sample.name}
                           </p>
                           <p className="text-xs text-slate-500 font-mono-variant">
-                            {sample.filename}
+                            {sample.original_filename}
                           </p>
                         </div>
                       </div>
@@ -251,7 +252,7 @@ export default function ComparePage() {
                         </span>
                       )}
                       <span className="text-xs text-slate-500 font-mono-variant">
-                        {sample.variant_count} variants
+                        {sample.total_variants} variants
                       </span>
                     </div>
                   </motion.div>

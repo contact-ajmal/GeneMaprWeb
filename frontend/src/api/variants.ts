@@ -17,13 +17,16 @@ export const uploadVCF = async (file: File): Promise<UploadResponse> => {
 export const getVariants = async (
   page: number = 1,
   pageSize: number = 50,
-  filters?: VariantFilters
+  filters?: VariantFilters,
+  sampleId?: string | null,
 ): Promise<PaginatedVariants> => {
   const params: Record<string, any> = {
     skip: (page - 1) * pageSize,
     limit: pageSize,
-    _t: Date.now(), // Cache buster
+    _t: Date.now(),
   }
+
+  if (sampleId) params.sample_id = sampleId
 
   if (filters) {
     if (filters.gene) params.gene = filters.gene
@@ -37,16 +40,14 @@ export const getVariants = async (
     if (filters.risk_score_max !== undefined) params.risk_score_max = filters.risk_score_max
   }
 
-  console.log('Fetching variants with params:', params)
   const response = await apiClient.get<PaginatedVariants>('/variants', { params })
-  console.log('Received response:', response.data)
-
-  // Backend returns the full paginated response
   return response.data
 }
 
-export const exportVariantsCSV = async (filters?: VariantFilters): Promise<Blob> => {
+export const exportVariantsCSV = async (filters?: VariantFilters, sampleId?: string | null): Promise<Blob> => {
   const params: Record<string, any> = {}
+
+  if (sampleId) params.sample_id = sampleId
 
   if (filters) {
     if (filters.gene) params.gene = filters.gene
@@ -68,13 +69,17 @@ export const exportVariantsCSV = async (filters?: VariantFilters): Promise<Blob>
   return response.data
 }
 
-export const getVariantStats = async (): Promise<VariantStats> => {
-  const response = await apiClient.get<VariantStats>('/variants/stats')
+export const getVariantStats = async (sampleId?: string | null): Promise<VariantStats> => {
+  const params: Record<string, any> = {}
+  if (sampleId) params.sample_id = sampleId
+  const response = await apiClient.get<VariantStats>('/variants/stats', { params })
   return response.data
 }
 
-export const getGenomeView = async (filters?: VariantFilters): Promise<GenomeViewData> => {
+export const getGenomeView = async (filters?: VariantFilters, sampleId?: string | null): Promise<GenomeViewData> => {
   const params: Record<string, any> = {}
+
+  if (sampleId) params.sample_id = sampleId
 
   if (filters) {
     if (filters.gene) params.gene = filters.gene

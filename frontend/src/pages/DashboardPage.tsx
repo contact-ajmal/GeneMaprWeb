@@ -16,6 +16,7 @@ import { useScrollReveal, scrollRevealVariants } from '../hooks/useScrollReveal'
 import ReportGeneratorModal from '../components/ReportGeneratorModal'
 import ProfileSelector from '../components/ProfileSelector'
 import ScoringProfileManager from '../components/ScoringProfileManager'
+import { useActiveSample } from '../contexts/ActiveSampleContext'
 import { Download, TrendingUp, AlertTriangle, HelpCircle, Activity, CheckCircle2, FileText } from 'lucide-react'
 
 const PAGE_SIZE = 50
@@ -70,18 +71,21 @@ export default function DashboardPage() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const [isProfileManagerOpen, setIsProfileManagerOpen] = useState(false)
   const { toast } = useToast()
+  const { primarySampleId, activeSamples } = useActiveSample()
+
+  const activeSampleName = activeSamples.length === 1 ? activeSamples[0].name : null
 
   // Fetch variant stats for KPI cards
   const { data: statsData } = useQuery({
-    queryKey: ['variantStats'],
-    queryFn: getVariantStats,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    queryKey: ['variantStats', primarySampleId],
+    queryFn: () => getVariantStats(primarySampleId),
+    staleTime: 1000 * 60 * 5,
   })
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['variants', page, filters],
+    queryKey: ['variants', page, filters, primarySampleId],
     queryFn: async () => {
-      const result = await getVariants(page, PAGE_SIZE, filters)
+      const result = await getVariants(page, PAGE_SIZE, filters, primarySampleId)
       return result
     },
     staleTime: 1000 * 60 * 5,
@@ -91,7 +95,7 @@ export default function DashboardPage() {
     try {
       setIsExporting(true)
       setExportSuccess(false)
-      const blob = await exportVariantsCSV(filters)
+      const blob = await exportVariantsCSV(filters, primarySampleId)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -174,7 +178,7 @@ export default function DashboardPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <DecodeText text="Variant Dashboard" speed={20} />
+              <DecodeText text={activeSampleName ? `Dashboard — ${activeSampleName}` : 'Variant Dashboard'} speed={20} />
             </motion.h1>
             <motion.p
               className="text-sm text-slate-400 font-body"
@@ -185,6 +189,11 @@ export default function DashboardPage() {
               {data?.total
                 ? `Analyzing ${data.total.toLocaleString()} genomic variant${data.total !== 1 ? 's' : ''}`
                 : 'Loading variant data...'}
+              {activeSamples.length > 1 && (
+                <span className="text-dna-cyan ml-2">
+                  (Showing combined data from {activeSamples.length} samples)
+                </span>
+              )}
             </motion.p>
           </div>
 
