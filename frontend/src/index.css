@@ -14,29 +14,97 @@
 @import '@fontsource/plus-jakarta-sans/600.css';
 @import '@fontsource/plus-jakarta-sans/700.css';
 
+/* ===================================================================
+   Theme Variables — Light mode (default) / Dark mode (.dark)
+   =================================================================== */
 :root {
   /* GeneMapr Design System v2.0 */
   font-family: 'Plus Jakarta Sans', sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  scroll-behavior: smooth;
 
-  /* Dark theme by default */
+  /* Light-mode color scheme */
+  color-scheme: light;
+
+  /* Core surface colors */
+  --color-bg-body: #f0f4f8;
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #475569;
+
+  /* Radial accent overlays */
+  --color-radial-1: rgba(0, 150, 200, 0.06);
+  --color-radial-2: rgba(200, 40, 80, 0.04);
+  --noise-opacity: 0.02;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg-elevated: rgba(255, 255, 255, 0.78);
+  --glass-bg-interactive: rgba(255, 255, 255, 0.82);
+  --glass-border: rgba(0, 150, 200, 0.15);
+  --glass-border-elevated: rgba(0, 150, 200, 0.20);
+  --glass-border-interactive: rgba(0, 150, 200, 0.30);
+
+  /* Scrollbar */
+  --scrollbar-track: rgba(200, 210, 225, 0.4);
+  --scrollbar-thumb: rgba(0, 160, 210, 0.35);
+  --scrollbar-thumb-hover: rgba(0, 160, 210, 0.55);
+
+  /* Selection */
+  --selection-bg: rgba(0, 180, 230, 0.25);
+  --selection-color: #000000;
+
+  /* Focus */
+  --focus-ring: #0099cc;
+  --focus-glow: rgba(0, 153, 204, 0.15);
+
+  /* Skeleton shimmer */
+  --shimmer-edge: rgba(220, 230, 240, 0.7);
+  --shimmer-mid: rgba(0, 180, 230, 0.10);
+}
+
+.dark {
   color-scheme: dark;
 
-  /* Smooth scroll */
-  scroll-behavior: smooth;
+  --color-bg-body: #0a0e1a;
+  --color-text-primary: #e2e8f0;
+  --color-text-secondary: #94a3b8;
+
+  --color-radial-1: rgba(0, 212, 255, 0.05);
+  --color-radial-2: rgba(255, 51, 102, 0.05);
+  --noise-opacity: 0.03;
+
+  --glass-bg: rgba(20, 27, 45, 0.45);
+  --glass-bg-elevated: rgba(26, 35, 50, 0.55);
+  --glass-bg-interactive: rgba(20, 27, 45, 0.6);
+  --glass-border: rgba(0, 212, 255, 0.1);
+  --glass-border-elevated: rgba(0, 212, 255, 0.15);
+  --glass-border-interactive: rgba(0, 212, 255, 0.25);
+
+  --scrollbar-track: rgba(20, 27, 45, 0.3);
+  --scrollbar-thumb: rgba(0, 212, 255, 0.3);
+  --scrollbar-thumb-hover: rgba(0, 212, 255, 0.5);
+
+  --selection-bg: rgba(0, 212, 255, 0.3);
+  --selection-color: #ffffff;
+
+  --focus-ring: #00d4ff;
+  --focus-glow: rgba(0, 212, 255, 0.1);
+
+  --shimmer-edge: rgba(20, 27, 45, 0.5);
+  --shimmer-mid: rgba(0, 212, 255, 0.1);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: #0a0e1a;
-  color: #e2e8f0;
+  background: var(--color-bg-body);
+  color: var(--color-text-primary);
 
   /* Noise texture overlay for depth */
   background-image:
-    radial-gradient(at 0% 0%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(255, 51, 102, 0.05) 0%, transparent 50%),
+    radial-gradient(at 0% 0%, var(--color-radial-1) 0%, transparent 50%),
+    radial-gradient(at 100% 100%, var(--color-radial-2) 0%, transparent 50%),
     url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
   background-attachment: fixed;
   background-size: cover;
@@ -49,40 +117,40 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(20, 27, 45, 0.3);
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.3);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 212, 255, 0.5);
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 212, 255, 0.3) rgba(20, 27, 45, 0.3);
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 /* Custom text selection */
 ::selection {
-  background: rgba(0, 212, 255, 0.3);
-  color: #ffffff;
+  background: var(--selection-bg);
+  color: var(--selection-color);
 }
 
 ::-moz-selection {
-  background: rgba(0, 212, 255, 0.3);
-  color: #ffffff;
+  background: var(--selection-bg);
+  color: var(--selection-color);
 }
 
 /* Custom focus styles */
 :focus-visible {
-  outline: 2px solid #00d4ff;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 0 4px var(--focus-glow);
 }
 
 /* Remove default focus styles */
@@ -110,21 +178,21 @@ body {
 /* Glassmorphism utility classes */
 @layer components {
   .glass-panel {
-    background: rgba(20, 27, 45, 0.45);
+    background: var(--glass-bg);
     backdrop-filter: blur(16px);
-    border: 1px solid rgba(0, 212, 255, 0.1);
+    border: 1px solid var(--glass-border);
   }
 
   .glass-panel-elevated {
-    background: rgba(26, 35, 50, 0.55);
+    background: var(--glass-bg-elevated);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(0, 212, 255, 0.15);
+    border: 1px solid var(--glass-border-elevated);
   }
 
   .glass-panel-interactive {
-    background: rgba(20, 27, 45, 0.6);
+    background: var(--glass-bg-interactive);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(0, 212, 255, 0.25);
+    border: 1px solid var(--glass-border-interactive);
   }
 
   /* Gradient text effect */
@@ -188,18 +256,17 @@ body {
   0% {
     background-position: -1000px 0;
   }
+
   100% {
     background-position: 1000px 0;
   }
 }
 
 .skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(20, 27, 45, 0.5) 0%,
-    rgba(0, 212, 255, 0.1) 50%,
-    rgba(20, 27, 45, 0.5) 100%
-  );
+  background: linear-gradient(90deg,
+      var(--shimmer-edge) 0%,
+      var(--shimmer-mid) 50%,
+      var(--shimmer-edge) 100%);
   background-size: 1000px 100%;
   animation: shimmer 2s infinite linear;
 }
@@ -239,4 +306,216 @@ input[type="range"]::-moz-range-thumb {
   border: 2px solid rgba(0, 212, 255, 0.5);
   cursor: pointer;
   box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+/* ===================================================================
+   LIGHT MODE OVERRIDES
+   Remap component-level hardcoded dark classes when .dark is absent.
+   This avoids modifying 30+ component files.
+   =================================================================== */
+html:not(.dark) body {
+  background: #f0f4f8;
+  color: #1e293b;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(0, 150, 200, 0.06) 0%, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(200, 40, 80, 0.04) 0%, transparent 50%);
+}
+
+html:not(.dark) input[type="range"]::-webkit-slider-thumb {
+  background: #334155;
+  border-color: rgba(0, 130, 200, 0.6);
+  box-shadow: 0 0 6px rgba(0, 130, 200, 0.25);
+}
+
+html:not(.dark) input[type="range"]::-moz-range-thumb {
+  background: #334155;
+  border-color: rgba(0, 130, 200, 0.6);
+  box-shadow: 0 0 6px rgba(0, 130, 200, 0.25);
+}
+
+/* Light-mode overrides using non-nested selectors for broad compatibility */
+html:not(.dark) .text-slate-100 {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .text-slate-200 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-slate-300 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-slate-400 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .text-white {
+  color: #0f172a !important;
+}
+
+/* Background surfaces */
+html:not(.dark) .bg-bg-primary {
+  background-color: #f0f4f8 !important;
+}
+
+html:not(.dark) .bg-bg-secondary {
+  background-color: #e8edf3 !important;
+}
+
+html:not(.dark) .bg-bg-tertiary {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .bg-bg-elevated {
+  background-color: #ffffff !important;
+}
+
+/* Translucent white overlays → make them slightly tinted in light mode */
+html:not(.dark) .bg-white\/5 {
+  background-color: rgba(0, 50, 80, 0.04) !important;
+}
+
+html:not(.dark) .bg-white\/10 {
+  background-color: rgba(0, 50, 80, 0.06) !important;
+}
+
+html:not(.dark) .bg-white\/20 {
+  background-color: rgba(0, 50, 80, 0.08) !important;
+}
+
+/* Borders — soften cyan glow to a subtler blue */
+html:not(.dark) .border-dna-cyan\/10 {
+  border-color: rgba(0, 130, 200, 0.15) !important;
+}
+
+html:not(.dark) .border-dna-cyan\/15 {
+  border-color: rgba(0, 130, 200, 0.18) !important;
+}
+
+html:not(.dark) .border-dna-cyan\/20 {
+  border-color: rgba(0, 130, 200, 0.22) !important;
+}
+
+html:not(.dark) .border-dna-cyan\/25 {
+  border-color: rgba(0, 130, 200, 0.28) !important;
+}
+
+html:not(.dark) .border-white\/10 {
+  border-color: rgba(0, 50, 80, 0.10) !important;
+}
+
+html:not(.dark) .border-white\/20 {
+  border-color: rgba(0, 50, 80, 0.12) !important;
+}
+
+/* Glow shadows → subtler in light mode */
+html:not(.dark) .shadow-glow-cyan-sm {
+  box-shadow: 0 2px 8px rgba(0, 130, 200, 0.08) !important;
+}
+
+html:not(.dark) .shadow-glow-cyan {
+  box-shadow: 0 4px 16px rgba(0, 130, 200, 0.10) !important;
+}
+
+html:not(.dark) .shadow-glow-cyan-lg {
+  box-shadow: 0 6px 24px rgba(0, 130, 200, 0.12) !important;
+}
+
+/* Hover text — slightly darker in light */
+html:not(.dark) .hover\:text-slate-200:hover {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .hover\:text-slate-300:hover {
+  color: #334155 !important;
+}
+
+html:not(.dark) .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 50, 80, 0.06) !important;
+}
+
+html:not(.dark) .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 50, 80, 0.08) !important;
+}
+
+/* dna-cyan accent backgrounds — make slightly more visible on light bg */
+html:not(.dark) .bg-dna-cyan\/10 {
+  background-color: rgba(0, 160, 220, 0.10) !important;
+}
+
+html:not(.dark) .bg-dna-cyan\/20 {
+  background-color: rgba(0, 160, 220, 0.15) !important;
+}
+
+/* dna-magenta accent backgrounds */
+html:not(.dark) .bg-dna-magenta\/10 {
+  background-color: rgba(220, 40, 80, 0.08) !important;
+}
+
+html:not(.dark) .bg-dna-magenta\/20 {
+  background-color: rgba(220, 40, 80, 0.12) !important;
+}
+
+/* Input/form fields */
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  color: #1e293b;
+}
+
+/* Modal backdrops - keep them working in light mode */
+html:not(.dark) .bg-black\/50 {
+  background-color: rgba(0, 0, 0, 0.35) !important;
+}
+
+html:not(.dark) .bg-black\/60 {
+  background-color: rgba(0, 0, 0, 0.40) !important;
+}
+
+html:not(.dark) .bg-black\/70 {
+  background-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Table header / data cells */
+html:not(.dark) th {
+  color: #475569;
+}
+
+html:not(.dark) td {
+  color: #334155;
+}
+
+/* Card styles that use inline dark rgba */
+html:not(.dark) [style*="background: rgba(20, 27, 45"] {
+  background: rgba(255, 255, 255, 0.7) !important;
+}
+
+html:not(.dark) [style*="background: rgba(26, 35, 50"] {
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+html:not(.dark) [style*="background-color: rgba(20, 27, 45"] {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+html:not(.dark) [style*="backgroundColor: rgba(20, 27, 45"] {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* SVG / icon text in charts */
+html:not(.dark) .recharts-text {
+  fill: #475569 !important;
+}
+
+html:not(.dark) .recharts-cartesian-axis-tick-value {
+  fill: #64748b !important;
+}
+
+html:not(.dark) .recharts-legend-item-text {
+  color: #475569 !important;
 }
