@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case, and_, literal
 from pathlib import Path
+from datetime import datetime
+import math
+from collections import defaultdict
 from uuid import UUID
 import tempfile
 import os
@@ -26,6 +29,22 @@ from app.schemas.variant import (
     GenomeViewResponse,
     GenomeAnnotation,
     ChromosomeSummary,
+    AdvancedVariantStatsResponse,
+    SummaryMetrics,
+    ClinicalSignificanceBreakdown,
+    SignificanceDetail,
+    ConsequenceItem,
+    GeneAnalysis,
+    GeneAnalysisItem,
+    AlleleFrequencySpectrum,
+    AFBin,
+    ScatterDataPoint,
+    RiskScoreAnalysis,
+    RiskScoreBin,
+    ChromosomeDistributionItem,
+    ACMGSummary,
+    ACMGCriterionFrequency,
+    ActionableSummary,
 )
 from app.services.vcf_parser import parse_and_store_vcf
 from app.services.annotation_service import annotate_variants_by_upload_id
@@ -337,6 +356,424 @@ async def get_variant_stats(
         clinvar_distribution=clinvar_distribution,
         risk_score_distribution=risk_score_distribution,
         af_distribution=af_distribution
+    )
+
+
+@router.get("/stats/advanced", response_model=AdvancedVariantStatsResponse)
+async def get_advanced_variant_stats(
+    sample_id: UUID | None = Query(None, description="Filter by sample ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get comprehensive advanced analytics data for the analytics dashboard.
+
+    Returns deeply structured data including clinical significance breakdown,
+    consequence analysis, gene-level analysis, allele frequency spectrum with
+    scatter data, risk score percentiles, chromosome distribution, ACMG summary,
+    actionable findings, and AI-generated insights.
+    """
+    from app.services.acmg_service import assess_acmg_criteria, ACMG_CRITERIA
+
+    def _sf(q):
+        if sample_id:
+            return q.where(Variant.sample_id == sample_id)
+        return q
+
+    # ── Fetch all variants once for in-memory analysis ──
+    all_q = _sf(select(Variant))
+    result = await db.execute(all_q)
+    all_variants = result.scalars().all()
+
+    total = len(all_variants)
+    if total == 0:
+        empty_sig = SignificanceDetail(count=0, percentage=0.0, genes=[])
+        return AdvancedVariantStatsResponse(
+            summary=SummaryMetrics(
+                total_variants=0, total_genes_affected=0, samples_analyzed=0,
+                mean_quality_score=0.0, analysis_date=datetime.utcnow().strftime("%Y-%m-%d"),
+            ),
+            clinical_significance=ClinicalSignificanceBreakdown(
+                pathogenic=empty_sig, likely_pathogenic=empty_sig,
+                uncertain_significance=empty_sig, likely_benign=empty_sig,
+                benign=empty_sig, conflicting=empty_sig, not_provided=empty_sig,
+            ),
+            consequences=[], gene_analysis=GeneAnalysis(top_genes=[], genes_with_multiple_hits=0, genes_pathogenic_only=[]),
+            allele_frequency_spectrum=AlleleFrequencySpectrum(
+                ultra_rare=AFBin(count=0, af_range="<0.0001"),
+                very_rare=AFBin(count=0, af_range="0.0001-0.001"),
+                rare=AFBin(count=0, af_range="0.001-0.01"),
+                low_frequency=AFBin(count=0, af_range="0.01-0.05"),
+                common=AFBin(count=0, af_range=">0.05"),
+                not_found=AFBin(count=0, af_range="N/A"),
+                scatter_data=[],
+            ),
+            risk_scores=RiskScoreAnalysis(
+                distribution=[], mean=0, median=0, std_dev=0, max=0, p90=0, p95=0,
+            ),
+            chromosome_distribution=[], acmg_summary=ACMGSummary(criteria_frequency=[]),
+            actionable_summary=ActionableSummary(
+                total_actionable=0, pharmacogenomic_variants=0,
+                cancer_predisposition=0, carrier_status=0, high_confidence_pathogenic=0,
+            ),
+            ai_insights=["No variant data available for analysis."],
+        )
+
+    # ── Helper: classify significance ──
+    def _classify_sig(sig: str | None) -> str:
+        if not sig:
+            return "not_provided"
+        s = sig.lower()
+        if "conflicting" in s:
+            return "conflicting"
+        if "likely pathogenic" in s:
+            return "likely_pathogenic"
+        if "pathogenic" in s:
+            return "pathogenic"
+        if "likely benign" in s:
+            return "likely_benign"
+        if "benign" in s:
+            return "benign"
+        if "uncertain" in s:
+            return "uncertain_significance"
+        return "not_provided"
+
+    # ── Summary Metrics ──
+    all_genes = set()
+    all_samples = set()
+    qual_scores = []
+    for v in all_variants:
+        if v.gene_symbol:
+            all_genes.add(v.gene_symbol)
+        if v.sample_id:
+            all_samples.add(v.sample_id)
+        if v.qual is not None:
+            qual_scores.append(v.qual)
+
+    summary = SummaryMetrics(
+        total_variants=total,
+        total_genes_affected=len(all_genes),
+        samples_analyzed=max(len(all_samples), 1),
+        mean_quality_score=round(sum(qual_scores) / len(qual_scores), 1) if qual_scores else 0.0,
+        analysis_date=datetime.utcnow().strftime("%Y-%m-%d"),
+    )
+
+    # ── Clinical Significance Breakdown ──
+    sig_buckets: dict[str, list] = {
+        "pathogenic": [], "likely_pathogenic": [], "uncertain_significance": [],
+        "likely_benign": [], "benign": [], "conflicting": [], "not_provided": [],
+    }
+    for v in all_variants:
+        cat = _classify_sig(v.clinvar_significance)
+        sig_buckets[cat].append(v)
+
+    def _sig_detail(variants: list) -> SignificanceDetail:
+        genes = list({v.gene_symbol for v in variants if v.gene_symbol})[:20]
+        return SignificanceDetail(
+            count=len(variants),
+            percentage=round(len(variants) / total * 100, 1) if total else 0,
+            genes=sorted(genes),
+        )
+
+    clinical_significance = ClinicalSignificanceBreakdown(
+        pathogenic=_sig_detail(sig_buckets["pathogenic"]),
+        likely_pathogenic=_sig_detail(sig_buckets["likely_pathogenic"]),
+        uncertain_significance=_sig_detail(sig_buckets["uncertain_significance"]),
+        likely_benign=_sig_detail(sig_buckets["likely_benign"]),
+        benign=_sig_detail(sig_buckets["benign"]),
+        conflicting=_sig_detail(sig_buckets["conflicting"]),
+        not_provided=_sig_detail(sig_buckets["not_provided"]),
+    )
+
+    # ── Consequence Distribution ──
+    cons_data: dict[str, dict] = defaultdict(lambda: {"count": 0, "pathogenic": 0})
+    for v in all_variants:
+        c = v.consequence or "unknown"
+        cons_data[c]["count"] += 1
+        if _classify_sig(v.clinvar_significance) in ("pathogenic", "likely_pathogenic"):
+            cons_data[c]["pathogenic"] += 1
+
+    consequences = sorted([
+        ConsequenceItem(
+            type=ctype,
+            count=d["count"],
+            pathogenic_pct=round(d["pathogenic"] / d["count"] * 100, 1) if d["count"] else 0,
+        )
+        for ctype, d in cons_data.items()
+    ], key=lambda x: x.count, reverse=True)
+
+    # ── Gene-Level Analysis ──
+    gene_data: dict[str, dict] = defaultdict(lambda: {
+        "variants": [], "pathogenic": 0, "risk_scores": [],
+        "consequences": set(), "chromosomes": set(), "clinvar": defaultdict(int),
+    })
+    for v in all_variants:
+        g = v.gene_symbol or "Intergenic"
+        gene_data[g]["variants"].append(v)
+        if _classify_sig(v.clinvar_significance) in ("pathogenic", "likely_pathogenic"):
+            gene_data[g]["pathogenic"] += 1
+        if v.risk_score is not None:
+            gene_data[g]["risk_scores"].append(v.risk_score)
+        if v.consequence:
+            gene_data[g]["consequences"].add(v.consequence)
+        gene_data[g]["chromosomes"].add(v.chrom)
+        sig_label = v.clinvar_significance or "Not provided"
+        gene_data[g]["clinvar"][sig_label] += 1
+
+    top_gene_items = sorted(gene_data.items(), key=lambda x: len(x[1]["variants"]), reverse=True)[:20]
+    gene_analysis_items = []
+    for gene_name, gd in top_gene_items:
+        rs = gd["risk_scores"]
+        gene_analysis_items.append(GeneAnalysisItem(
+            gene=gene_name,
+            variant_count=len(gd["variants"]),
+            pathogenic_count=gd["pathogenic"],
+            max_risk_score=max(rs) if rs else 0,
+            mean_risk_score=round(sum(rs) / len(rs), 1) if rs else 0,
+            consequences=sorted(gd["consequences"]),
+            chromosomes=sorted(gd["chromosomes"]),
+            clinvar_classifications=dict(gd["clinvar"]),
+        ))
+
+    genes_multiple = sum(1 for gd in gene_data.values() if len(gd["variants"]) > 1)
+    genes_path_only = [
+        g for g, gd in gene_data.items()
+        if g != "Intergenic"
+        and len(gd["variants"]) == gd["pathogenic"]
+        and gd["pathogenic"] > 0
+    ]
+
+    gene_analysis = GeneAnalysis(
+        top_genes=gene_analysis_items,
+        genes_with_multiple_hits=genes_multiple,
+        genes_pathogenic_only=sorted(genes_path_only)[:20],
+    )
+
+    # ── Allele Frequency Spectrum ──
+    af_bins = {"ultra_rare": 0, "very_rare": 0, "rare": 0, "low_frequency": 0, "common": 0, "not_found": 0}
+    scatter_data = []
+    for v in all_variants:
+        af = v.gnomad_af
+        if af is None:
+            af_bins["not_found"] += 1
+        elif af < 0.0001:
+            af_bins["ultra_rare"] += 1
+        elif af < 0.001:
+            af_bins["very_rare"] += 1
+        elif af < 0.01:
+            af_bins["rare"] += 1
+        elif af < 0.05:
+            af_bins["low_frequency"] += 1
+        else:
+            af_bins["common"] += 1
+
+        if af is not None and af > 0 and v.risk_score is not None:
+            scatter_data.append(ScatterDataPoint(
+                variant_id=str(v.id),
+                gene=v.gene_symbol or "Unknown",
+                af=af,
+                risk_score=v.risk_score,
+                significance=v.clinvar_significance or "Not provided",
+                consequence=v.consequence or "Unknown",
+            ))
+
+    allele_frequency_spectrum = AlleleFrequencySpectrum(
+        ultra_rare=AFBin(count=af_bins["ultra_rare"], af_range="<0.0001"),
+        very_rare=AFBin(count=af_bins["very_rare"], af_range="0.0001-0.001"),
+        rare=AFBin(count=af_bins["rare"], af_range="0.001-0.01"),
+        low_frequency=AFBin(count=af_bins["low_frequency"], af_range="0.01-0.05"),
+        common=AFBin(count=af_bins["common"], af_range=">0.05"),
+        not_found=AFBin(count=af_bins["not_found"], af_range="N/A"),
+        scatter_data=scatter_data[:500],  # cap for performance
+    )
+
+    # ── Risk Score Analysis ──
+    risk_values = [v.risk_score for v in all_variants if v.risk_score is not None]
+    if risk_values:
+        sorted_risks = sorted(risk_values)
+        n = len(sorted_risks)
+        mean_r = sum(sorted_risks) / n
+        median_r = sorted_risks[n // 2] if n % 2 else (sorted_risks[n // 2 - 1] + sorted_risks[n // 2]) / 2
+        variance = sum((x - mean_r) ** 2 for x in sorted_risks) / n
+        std_dev_r = math.sqrt(variance)
+        p90_r = sorted_risks[int(n * 0.9)] if n > 1 else sorted_risks[0]
+        p95_r = sorted_risks[int(n * 0.95)] if n > 1 else sorted_risks[0]
+        max_r = sorted_risks[-1]
+    else:
+        mean_r = median_r = std_dev_r = p90_r = p95_r = 0.0
+        max_r = 0
+
+    risk_bins = [
+        ("0-2", "Low", 0, 2, "#00ff88"),
+        ("3-5", "Moderate", 3, 5, "#ffaa00"),
+        ("6-8", "High", 6, 8, "#ff8c00"),
+        ("9-12", "Very High", 9, 12, "#ff3366"),
+        ("13+", "Critical", 13, 999, "#cc0033"),
+    ]
+    risk_distribution = []
+    for rng, label, lo, hi, color in risk_bins:
+        cnt = sum(1 for r in risk_values if lo <= r <= hi)
+        risk_distribution.append(RiskScoreBin(range=rng, label=label, count=cnt, color=color))
+
+    risk_scores = RiskScoreAnalysis(
+        distribution=risk_distribution,
+        mean=round(mean_r, 1),
+        median=round(median_r, 1),
+        std_dev=round(std_dev_r, 2),
+        max=max_r,
+        p90=round(p90_r, 1),
+        p95=round(p95_r, 1),
+    )
+
+    # ── Chromosome Distribution ──
+    chrom_data: dict[str, dict] = defaultdict(lambda: {"count": 0, "pathogenic": 0, "genes": set()})
+    for v in all_variants:
+        ch = v.chrom.replace("chr", "")
+        chrom_data[ch]["count"] += 1
+        if _classify_sig(v.clinvar_significance) in ("pathogenic", "likely_pathogenic"):
+            chrom_data[ch]["pathogenic"] += 1
+        if v.gene_symbol:
+            chrom_data[ch]["genes"].add(v.gene_symbol)
+
+    chrom_order = [str(i) for i in range(1, 23)] + ["X", "Y", "MT"]
+    chromosome_distribution = []
+    for ch in chrom_order:
+        if ch in chrom_data:
+            d = chrom_data[ch]
+            chromosome_distribution.append(ChromosomeDistributionItem(
+                chromosome=ch,
+                variant_count=d["count"],
+                pathogenic_count=d["pathogenic"],
+                genes=sorted(d["genes"])[:10],
+            ))
+
+    # ── ACMG Summary ──
+    acmg_counts: dict[str, int] = defaultdict(int)
+    for v in all_variants:
+        acmg_result = assess_acmg_criteria(v)
+        for criterion in acmg_result["criteria_met"]:
+            acmg_counts[criterion] += 1
+
+    acmg_freq = []
+    for criterion, info in ACMG_CRITERIA.items():
+        cnt = acmg_counts.get(criterion, 0)
+        if cnt > 0:
+            acmg_freq.append(ACMGCriterionFrequency(
+                criterion=criterion,
+                met_count=cnt,
+                description=info["label"],
+            ))
+    acmg_freq.sort(key=lambda x: x.met_count, reverse=True)
+    acmg_summary = ACMGSummary(criteria_frequency=acmg_freq)
+
+    # ── Actionable Summary ──
+    PGX_GENES = {"CYP2C19", "CYP2D6", "CYP3A5", "CYP2C9", "DPYD", "TPMT", "NUDT15",
+                 "UGT1A1", "SLCO1B1", "VKORC1", "CYP1A2", "CYP2B6", "NAT2", "G6PD"}
+    CANCER_GENES = {"BRCA1", "BRCA2", "TP53", "MLH1", "MSH2", "MSH6", "PMS2",
+                    "APC", "MUTYH", "CDH1", "PTEN", "STK11", "PALB2", "ATM",
+                    "CHEK2", "RAD51C", "RAD51D", "BARD1", "RB1", "NF1", "NF2", "VHL"}
+
+    pgx_count = 0
+    cancer_count = 0
+    carrier_count = 0
+    high_conf_path = 0
+    for v in all_variants:
+        sig = _classify_sig(v.clinvar_significance)
+        gene = v.gene_symbol or ""
+        if gene in PGX_GENES:
+            pgx_count += 1
+        if gene in CANCER_GENES and sig in ("pathogenic", "likely_pathogenic"):
+            cancer_count += 1
+        review = (v.clinvar_review_status or "").lower()
+        if sig == "pathogenic" and ("2" in review or "3" in review or "4" in review or "expert" in review):
+            high_conf_path += 1
+        if sig in ("pathogenic", "likely_pathogenic") and v.gnomad_af and v.gnomad_af > 0.001:
+            carrier_count += 1
+
+    total_actionable = pgx_count + cancer_count + high_conf_path
+    actionable = ActionableSummary(
+        total_actionable=total_actionable,
+        pharmacogenomic_variants=pgx_count,
+        cancer_predisposition=cancer_count,
+        carrier_status=carrier_count,
+        high_confidence_pathogenic=high_conf_path,
+    )
+
+    # ── AI Insights (deterministic rules) ──
+    insights = []
+    path_pct = clinical_significance.pathogenic.percentage + clinical_significance.likely_pathogenic.percentage
+    vus_pct = clinical_significance.uncertain_significance.percentage
+
+    if vus_pct > 50:
+        insights.append(
+            f"{vus_pct:.0f}% of variants are classified as VUS, "
+            "suggesting further investigation may be warranted for clinical reporting."
+        )
+    if path_pct > 20:
+        insights.append(
+            f"{path_pct:.0f}% of variants are pathogenic or likely pathogenic — "
+            "this is an elevated rate that may indicate a disease-enriched sample."
+        )
+
+    # Gene-specific insights
+    for gi in gene_analysis_items[:5]:
+        if gi.pathogenic_count >= 2:
+            insights.append(
+                f"{gi.gene} has {gi.pathogenic_count} pathogenic variants — "
+                "consider cascade family testing if clinically indicated."
+            )
+
+    if pgx_count > 0:
+        pgx_gene_list = [v.gene_symbol for v in all_variants if v.gene_symbol in PGX_GENES]
+        unique_pgx = sorted(set(pgx_gene_list))[:5]
+        insights.append(
+            f"{pgx_count} pharmacogenomic variant(s) detected "
+            f"affecting {', '.join(unique_pgx)} metabolism."
+        )
+
+    if cancer_count > 0:
+        insights.append(
+            f"{cancer_count} cancer predisposition variant(s) identified — "
+            "genetic counseling may be recommended."
+        )
+
+    lof_variants = [v for v in all_variants if v.consequence and any(
+        c in v.consequence.lower() for c in ["frameshift", "stop_gained", "splice_donor", "splice_acceptor"]
+    )]
+    if lof_variants:
+        lof_genes = sorted({v.gene_symbol for v in lof_variants if v.gene_symbol})
+        insights.append(
+            f"{len(lof_variants)} loss-of-function variant(s) detected across "
+            f"{len(lof_genes)} gene(s): {', '.join(lof_genes[:5])}."
+        )
+
+    if risk_scores.p95 > 0:
+        high_risk_count = sum(1 for r in risk_values if r > risk_scores.p95)
+        insights.append(
+            f"95th percentile risk score is {risk_scores.p95:.0f}, "
+            f"with {high_risk_count} variant(s) exceeding this threshold."
+        )
+
+    ultra_rare_pct = round(allele_frequency_spectrum.ultra_rare.count / total * 100, 1) if total else 0
+    if ultra_rare_pct > 30:
+        insights.append(
+            f"{ultra_rare_pct}% of variants are ultra-rare (AF < 0.0001), "
+            "consistent with a rare disease or highly penetrant variant panel."
+        )
+
+    if not insights:
+        insights.append("Analysis complete. No notable patterns detected in this dataset.")
+
+    return AdvancedVariantStatsResponse(
+        summary=summary,
+        clinical_significance=clinical_significance,
+        consequences=consequences,
+        gene_analysis=gene_analysis,
+        allele_frequency_spectrum=allele_frequency_spectrum,
+        risk_scores=risk_scores,
+        chromosome_distribution=chromosome_distribution,
+        acmg_summary=acmg_summary,
+        actionable_summary=actionable,
+        ai_insights=insights[:8],
     )
 
 

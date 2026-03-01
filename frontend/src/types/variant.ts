@@ -140,6 +140,134 @@ export interface VariantStats {
   af_distribution: DistributionItem[]
 }
 
+// --- Advanced Analytics Types ---
+
+export interface SummaryMetrics {
+  total_variants: number
+  total_genes_affected: number
+  samples_analyzed: number
+  mean_quality_score: number
+  analysis_date: string
+}
+
+export interface SignificanceDetail {
+  count: number
+  percentage: number
+  genes: string[]
+}
+
+export interface ClinicalSignificanceBreakdown {
+  pathogenic: SignificanceDetail
+  likely_pathogenic: SignificanceDetail
+  uncertain_significance: SignificanceDetail
+  likely_benign: SignificanceDetail
+  benign: SignificanceDetail
+  conflicting: SignificanceDetail
+  not_provided: SignificanceDetail
+}
+
+export interface ConsequenceItem {
+  type: string
+  count: number
+  pathogenic_pct: number
+}
+
+export interface GeneAnalysisItem {
+  gene: string
+  variant_count: number
+  pathogenic_count: number
+  max_risk_score: number
+  mean_risk_score: number
+  consequences: string[]
+  chromosomes: string[]
+  clinvar_classifications: Record<string, number>
+}
+
+export interface GeneAnalysis {
+  top_genes: GeneAnalysisItem[]
+  genes_with_multiple_hits: number
+  genes_pathogenic_only: string[]
+}
+
+export interface AFBin {
+  count: number
+  af_range: string
+}
+
+export interface ScatterDataPoint {
+  variant_id: string
+  gene: string
+  af: number
+  risk_score: number
+  significance: string
+  consequence: string
+}
+
+export interface AlleleFrequencySpectrum {
+  ultra_rare: AFBin
+  very_rare: AFBin
+  rare: AFBin
+  low_frequency: AFBin
+  common: AFBin
+  not_found: AFBin
+  scatter_data: ScatterDataPoint[]
+}
+
+export interface RiskScoreBin {
+  range: string
+  label: string
+  count: number
+  color: string
+}
+
+export interface RiskScoreAnalysis {
+  distribution: RiskScoreBin[]
+  mean: number
+  median: number
+  std_dev: number
+  max: number
+  p90: number
+  p95: number
+}
+
+export interface ChromosomeDistributionItem {
+  chromosome: string
+  variant_count: number
+  pathogenic_count: number
+  genes: string[]
+}
+
+export interface ACMGCriterionFrequency {
+  criterion: string
+  met_count: number
+  description: string
+}
+
+export interface ACMGAnalyticsSummary {
+  criteria_frequency: ACMGCriterionFrequency[]
+}
+
+export interface ActionableSummary {
+  total_actionable: number
+  pharmacogenomic_variants: number
+  cancer_predisposition: number
+  carrier_status: number
+  high_confidence_pathogenic: number
+}
+
+export interface AdvancedVariantStats {
+  summary: SummaryMetrics
+  clinical_significance: ClinicalSignificanceBreakdown
+  consequences: ConsequenceItem[]
+  gene_analysis: GeneAnalysis
+  allele_frequency_spectrum: AlleleFrequencySpectrum
+  risk_scores: RiskScoreAnalysis
+  chromosome_distribution: ChromosomeDistributionItem[]
+  acmg_summary: ACMGAnalyticsSummary
+  actionable_summary: ActionableSummary
+  ai_insights: string[]
+}
+
 // Scoring Profile types
 export interface ScoringWeights {
   pathogenic: number

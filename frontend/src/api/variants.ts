@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { PaginatedVariants, VariantFilters, UploadResponse, VariantStats, GenomeViewData, VariantDetail } from '../types/variant'
+import type { PaginatedVariants, VariantFilters, UploadResponse, VariantStats, GenomeViewData, VariantDetail, AdvancedVariantStats } from '../types/variant'
 
 export const uploadVCF = async (file: File): Promise<UploadResponse> => {
   const formData = new FormData()
@@ -73,6 +73,13 @@ export const getVariantStats = async (sampleId?: string | null): Promise<Variant
   const params: Record<string, any> = {}
   if (sampleId) params.sample_id = sampleId
   const response = await apiClient.get<VariantStats>('/variants/stats', { params })
+  return response.data
+}
+
+export const getAdvancedVariantStats = async (sampleId?: string | null): Promise<AdvancedVariantStats> => {
+  const params: Record<string, any> = {}
+  if (sampleId) params.sample_id = sampleId
+  const response = await apiClient.get<AdvancedVariantStats>('/variants/stats/advanced', { params })
   return response.data
 }
 
