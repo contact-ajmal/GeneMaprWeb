@@ -566,16 +566,103 @@ curl "http://localhost:8000/variants/export/csv" -o test_export.csv
 
 ## Screenshots
 
-> **Note:** Add screenshots of the application here once UI is finalized.
+### 🎬 App Slideshow
+
+<table>
+  <tr>
+    <td align="center"><b>Upload & VCF Parsing</b></td>
+    <td align="center"><b>Variant Dashboard</b></td>
+    <td align="center"><b>Sample Workspace</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/01_upload.png" width="300"/></td>
+    <td><img src="screenshots/02_dashboard.png" width="300"/></td>
+    <td><img src="screenshots/03_sample_workspace.png" width="300"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Genome View</b></td>
+    <td align="center"><b>Genome Analytics</b></td>
+    <td align="center"><b>Pharmacogenomics</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/04_genome_view.png" width="300"/></td>
+    <td><img src="screenshots/05_genome_analytics.png" width="300"/></td>
+    <td><img src="screenshots/06_pharmacogenomics.png" width="300"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Sample Comparison</b></td>
+    <td align="center"><b>Reports</b></td>
+    <td align="center"><b>Settings</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/07_sample_comparison.png" width="300"/></td>
+    <td><img src="screenshots/08_reports.png" width="300"/></td>
+    <td><img src="screenshots/09_settings.png" width="300"/></td>
+  </tr>
+</table>
+
+---
 
 ### Upload Page
-![Upload Page Placeholder]
+Upload VCF files with drag-and-drop or file browser. Supports `.vcf` and `.vcf.gz` formats with real-time sample tracking.
 
-### Dashboard with Filters
-![Dashboard Placeholder]
+![Upload Page](screenshots/01_upload.png)
 
-### Variant Detail Modal
-![Detail Modal Placeholder]
+---
+
+### Variant Dashboard
+Interactive variant table with advanced filtering by gene symbol, clinical significance, allele frequency, risk score, and consequence type. Summary cards show pathogenic, likely pathogenic, VUS, and high-risk counts at a glance.
+
+![Variant Dashboard](screenshots/02_dashboard.png)
+
+---
+
+### Sample Workspace
+Manage all uploaded samples in one place. View variant counts, file details, and proband labels. Supports multi-sample workflows.
+
+![Sample Workspace](screenshots/03_sample_workspace.png)
+
+---
+
+### Genome View
+Interactive cytogenetic ideogram for visualizing variant positions across all chromosomes.
+
+![Genome View](screenshots/04_genome_view.png)
+
+---
+
+### Genome Analytics
+Visual breakdown of variant distributions by clinical significance and consequence type with interactive charts.
+
+![Genome Analytics](screenshots/05_genome_analytics.png)
+
+---
+
+### Pharmacogenomics
+Detailed metabolizer status for key pharmacogenes (DPYD, TPMT, CYP2C19, CYP2C9, SLCO1B1, VKORC1, CYP2D6) with drug interaction analysis.
+
+![Pharmacogenomics](screenshots/06_pharmacogenomics.png)
+
+---
+
+### Sample Comparison
+Multi-sample and family-based cohort analysis interface for comparing genomic profiles across samples.
+
+![Sample Comparison](screenshots/07_sample_comparison.png)
+
+---
+
+### Reports
+Generate and manage clinical, research, and patient-friendly PDF reports from analyzed variant data.
+
+![Reports](screenshots/08_reports.png)
+
+---
+
+### Settings
+User management, administration panel, and application configuration including LLM model selection.
+
+![Settings](screenshots/09_settings.png)
 
 ---
 
