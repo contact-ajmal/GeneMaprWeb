@@ -6,6 +6,7 @@ import { Link, useLocation } from 'react-router-dom'
 const navLinks = [
     { label: 'Home', path: '/' },
     { label: 'Features', path: '/features' },
+    { label: 'AlphaGenome', path: '/alphagenome', highlight: true },
     { label: 'Screenshots', path: '/screenshots' },
     { label: 'Architecture', path: '/architecture' },
     { label: 'Tech Stack', path: '/tech-stack' },
@@ -84,24 +85,31 @@ export function Navbar() {
 
                 {/* Desktop nav */}
                 <nav style={{ display: 'flex', alignItems: 'center', gap: 28 }} className="desktop-nav">
-                    {navLinks.map(link => {
+                    {navLinks.map((link: any) => {
                         const isActive = location.pathname === link.path
+                        const isHighlight = link.highlight
                         return (
                             <Link
                                 key={link.path}
                                 to={link.path}
                                 style={{
                                     fontSize: '0.88rem',
-                                    fontWeight: isActive ? 600 : 500,
-                                    color: isActive ? '#00d4ff' : '#94a3b8',
-                                    transition: 'color 0.2s',
+                                    fontWeight: isActive || isHighlight ? 600 : 500,
+                                    color: isActive ? (isHighlight ? '#a78bfa' : '#00d4ff') : isHighlight ? '#a78bfa' : '#94a3b8',
+                                    transition: 'all 0.2s',
                                     position: 'relative',
                                     paddingBottom: 4,
+                                    ...(isHighlight && !isActive ? {
+                                        background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                        backgroundClip: 'text',
+                                    } : {}),
                                 }}
-                                onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = '#e2e8f0' }}
-                                onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = '#94a3b8' }}
+                                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.opacity = '0.8' } }}
+                                onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
                             >
-                                {link.label}
+                                {isHighlight && '✦ '}{link.label}
                                 {isActive && (
                                     <motion.div
                                         layoutId="navIndicator"
@@ -111,9 +119,9 @@ export function Navbar() {
                                             left: 0,
                                             right: 0,
                                             height: 2,
-                                            background: '#00d4ff',
+                                            background: isHighlight ? '#8b5cf6' : '#00d4ff',
                                             borderRadius: 1,
-                                            boxShadow: '0 0 8px rgba(0, 212, 255, 0.4)',
+                                            boxShadow: isHighlight ? '0 0 8px rgba(139, 92, 246, 0.4)' : '0 0 8px rgba(0, 212, 255, 0.4)',
                                         }}
                                     />
                                 )}

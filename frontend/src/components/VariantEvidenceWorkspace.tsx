@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getVariantDetail } from '../api/variants'
-import type { Variant, VariantDetail, ACMGCriterionDetail } from '../types/variant'
+import { predictAlphaGenome } from '../api/alphagenome'
+import type { Variant, VariantDetail, ACMGCriterionDetail, AlphaGenomePrediction, AlphaGenomeOutputType } from '../types/variant'
 import GlowBadge from './ui/GlowBadge'
 import {
   X, Activity, Zap, MapPin, Dna, FileText, Globe, Hash,
   ExternalLink, Check, Minus, AlertTriangle, Star,
   MessageSquare, Clock,
-  BarChart3, Shield, StickyNote,
+  BarChart3, Shield, StickyNote, Sparkles,
 } from 'lucide-react'
 
 interface VariantEvidenceWorkspaceProps {
@@ -16,13 +17,14 @@ interface VariantEvidenceWorkspaceProps {
   onClose: () => void
 }
 
-type TabId = 'overview' | 'acmg' | 'population' | 'annotations' | 'notes'
+type TabId = 'overview' | 'acmg' | 'population' | 'annotations' | 'alphagenome' | 'notes'
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Overview', icon: <Activity className="w-4 h-4" /> },
   { id: 'acmg', label: 'ACMG', icon: <Shield className="w-4 h-4" /> },
   { id: 'population', label: 'Population', icon: <BarChart3 className="w-4 h-4" /> },
   { id: 'annotations', label: 'Annotations', icon: <FileText className="w-4 h-4" /> },
+  { id: 'alphagenome', label: 'AlphaGenome', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'notes', label: 'Notes', icon: <StickyNote className="w-4 h-4" /> },
 ]
 
@@ -254,6 +256,7 @@ export default function VariantEvidenceWorkspace({
                       {activeTab === 'population' && detail && <PopulationTab detail={detail} />}
                       {activeTab === 'population' && !detail && <NoDataMessage message="Loading population data..." />}
                       {activeTab === 'annotations' && v && <AnnotationsTab variant={v} detail={detail} />}
+                      {activeTab === 'alphagenome' && v && <AlphaGenomeTab variant={v} />}
                       {activeTab === 'notes' && v && <NotesTab variantId={v.id} />}
                     </motion.div>
                   </AnimatePresence>
@@ -923,6 +926,411 @@ function NotesTab({ variantId }: { variantId: string }) {
   )
 }
 
+// ---- Tab 6: AlphaGenome ----
+
+const OUTPUT_TYPE_OPTIONS: { value: AlphaGenomeOutputType; label: string; description: string }[] = [
+  { value: 'RNA_SEQ', label: 'RNA-seq', description: 'Gene expression' },
+  { value: 'CAGE', label: 'CAGE', description: 'TSS activity' },
+  { value: 'DNASE', label: 'DNase', description: 'Chromatin accessibility' },
+  { value: 'CHIP_HISTONE', label: 'ChIP Histone', description: 'Histone marks' },
+  { value: 'ATAC', label: 'ATAC-seq', description: 'Open chromatin' },
+]
+
+function AlphaGenomeTab({ variant }: { variant: Variant }) {
+  const [prediction, setPrediction] = useState<AlphaGenomePrediction | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [outputType, setOutputType] = useState<AlphaGenomeOutputType>('RNA_SEQ')
+
+  // Reset state when variant changes
+  useEffect(() => {
+    setPrediction(null)
+    setError(null)
+    setLoading(false)
+  }, [variant.id])
+
+  const handlePredict = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    setPrediction(null)
+    try {
+      const result = await predictAlphaGenome(
+        variant.chrom,
+        variant.pos,
+        variant.ref,
+        variant.alt,
+        outputType,
+      )
+      setPrediction(result)
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || err?.message || 'Prediction failed'
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }, [variant, outputType])
+
+  return (
+    <div className="space-y-6">
+      {/* Header card */}
+      <motion.div
+        className="relative rounded-xl p-5 overflow-hidden"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{
+          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(0, 212, 255, 0.08) 100%)',
+          border: '1px solid rgba(99, 102, 241, 0.25)',
+        }}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500/20 to-dna-cyan/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-[0_0_12px_rgba(99,102,241,0.15)]">
+            <Sparkles className="w-5 h-5 text-indigo-400" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-headline font-semibold text-slate-100 mb-1">
+              AlphaGenome Variant Effect Prediction
+            </h3>
+            <p className="text-xs text-slate-400 font-body leading-relaxed">
+              Powered by Google DeepMind. Predicts the functional impact of this variant on
+              gene expression, chromatin accessibility, and more using a deep learning model
+              trained on 1M+ base pair sequences.
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Output type selector + run button */}
+      <motion.div
+        className="glass-panel rounded-xl p-5 border border-dna-cyan/10"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+      >
+        <h3 className="text-sm font-headline font-semibold text-slate-100 mb-3 flex items-center gap-2">
+          <Dna className="w-5 h-5 text-dna-cyan" />
+          Prediction Settings
+        </h3>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+          {OUTPUT_TYPE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setOutputType(opt.value)}
+              disabled={loading}
+              className={`
+                rounded-lg p-3 text-left transition-all duration-200 border
+                ${outputType === opt.value
+                  ? 'bg-indigo-500/10 border-indigo-500/40 ring-1 ring-indigo-500/20'
+                  : 'bg-slate-800/30 border-slate-700/30 hover:border-slate-600/50'
+                }
+                ${loading ? 'opacity-50 cursor-not-allowed' : ''}
+              `}
+            >
+              <span className={`text-xs font-headline font-bold block ${outputType === opt.value ? 'text-indigo-400' : 'text-slate-400'
+                }`}>
+                {opt.label}
+              </span>
+              <span className="text-[10px] text-slate-500 font-body">{opt.description}</span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={handlePredict}
+          disabled={loading}
+          className={`
+            w-full py-3 rounded-xl font-headline font-semibold text-sm transition-all duration-300
+            flex items-center justify-center gap-2
+            ${loading
+              ? 'bg-indigo-500/20 text-indigo-300 cursor-wait border border-indigo-500/20'
+              : 'bg-gradient-to-r from-indigo-600 to-dna-cyan text-white hover:shadow-[0_0_24px_rgba(99,102,241,0.25)] hover:-translate-y-0.5 active:translate-y-0'
+            }
+          `}
+        >
+          {loading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-indigo-300/30 border-t-indigo-300 rounded-full animate-spin" />
+              Running AlphaGenome...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              Run AlphaGenome Prediction
+            </>
+          )}
+        </button>
+      </motion.div>
+
+      {/* Error state */}
+      {error && (
+        <motion.div
+          className="rounded-xl p-4 border border-dna-magenta/30 bg-dna-magenta/5"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-dna-magenta flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-headline font-semibold text-dna-magenta mb-1">Prediction Failed</p>
+              <p className="text-xs text-slate-400 font-body">{error}</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Results */}
+      {prediction && (
+        <>
+          {/* Effect score */}
+          <motion.div
+            className="glass-panel rounded-xl p-5 border border-indigo-500/20"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-headline font-semibold text-slate-100 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-indigo-400" />
+                Variant Effect Score
+              </h3>
+              <GlowBadge
+                variant="score"
+                severity={prediction.variant_effect_score >= 1.0 ? 9 : prediction.variant_effect_score >= 0.5 ? 7 : prediction.variant_effect_score >= 0.2 ? 5 : 3}
+              >
+                {prediction.variant_effect_score >= 1.0 ? 'High Impact' :
+                  prediction.variant_effect_score >= 0.5 ? 'Moderate Impact' :
+                    prediction.variant_effect_score >= 0.2 ? 'Low Impact' : 'Minimal Impact'}
+              </GlowBadge>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="flex-1">
+                <div className="h-3 bg-bg-tertiary rounded-full overflow-hidden">
+                  <motion.div
+                    className={`h-full rounded-full shadow-[0_0_8px_rgba(99,102,241,0.3)] ${prediction.variant_effect_score >= 1.0
+                      ? 'bg-gradient-to-r from-dna-magenta to-red-500'
+                      : prediction.variant_effect_score >= 0.5
+                        ? 'bg-gradient-to-r from-dna-amber to-orange-500'
+                        : prediction.variant_effect_score >= 0.2
+                          ? 'bg-gradient-to-r from-yellow-400 to-dna-amber'
+                          : 'bg-gradient-to-r from-dna-green to-emerald-400'
+                      }`}
+                    initial={{ width: '0%' }}
+                    animate={{ width: `${Math.min(100, prediction.variant_effect_score * 50)}%` }}
+                    transition={{ duration: 1, delay: 0.2, ease: 'easeOut' }}
+                  />
+                </div>
+              </div>
+              <span className="text-xl font-headline font-bold text-slate-100 w-16 text-right">
+                {prediction.variant_effect_score.toFixed(3)}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-2 font-body">
+              Mean absolute log₂ fold-change between REF and ALT prediction tracks
+            </p>
+          </motion.div>
+
+          {/* Track visualization */}
+          <motion.div
+            className="glass-panel rounded-xl p-5 border border-dna-cyan/10"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <h3 className="text-sm font-headline font-semibold text-slate-100 mb-4 flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-dna-cyan" />
+              Prediction Tracks — {OUTPUT_TYPE_OPTIONS.find(o => o.value === prediction.output_type)?.label || prediction.output_type}
+            </h3>
+            <TrackVisualization
+              refTracks={prediction.ref_tracks}
+              altTracks={prediction.alt_tracks}
+            />
+            <div className="flex items-center gap-4 mt-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-0.5 bg-slate-400 rounded" />
+                <span className="text-[10px] text-slate-500 font-body">REF</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-0.5 bg-indigo-400 rounded" />
+                <span className="text-[10px] text-slate-500 font-body">ALT</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Interval info */}
+          <motion.div
+            className="glass-panel rounded-xl p-5 border border-dna-cyan/10"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <h3 className="text-sm font-headline font-semibold text-slate-100 mb-3 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-dna-cyan" />
+              Prediction Window
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              <InfoItem label="Chromosome" value={prediction.interval.chromosome} />
+              <InfoItem label="Start" value={prediction.interval.start.toLocaleString()} mono />
+              <InfoItem label="End" value={prediction.interval.end.toLocaleString()} mono />
+            </div>
+            <div className="mt-3 pt-3 border-t border-slate-700/30">
+              <a
+                href="https://deepmind.google.com/science/alphagenome"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-body
+                  bg-indigo-500/5 border border-indigo-500/20 text-indigo-400
+                  hover:bg-indigo-500/10 hover:border-indigo-500/40
+                  transition-all duration-200"
+              >
+                <Sparkles className="w-3 h-3" />
+                Learn more about AlphaGenome
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </motion.div>
+        </>
+      )}
+
+      {/* Empty state (before running) */}
+      {!prediction && !loading && !error && (
+        <motion.div
+          className="glass-panel rounded-xl p-8 border border-slate-700/30 text-center"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Sparkles className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+          <h3 className="text-sm font-headline font-semibold text-slate-300 mb-1">
+            Ready to Predict
+          </h3>
+          <p className="text-xs text-slate-500 font-body max-w-sm mx-auto">
+            Select an output type above and click "Run AlphaGenome Prediction" to
+            see how this variant affects regulatory function.
+          </p>
+        </motion.div>
+      )}
+    </div>
+  )
+}
+
+// SVG-based track visualisation for AlphaGenome REF/ALT prediction data
+function TrackVisualization({
+  refTracks,
+  altTracks,
+}: {
+  refTracks: number[]
+  altTracks: number[]
+}) {
+  const width = 600
+  const height = 160
+  const padding = { top: 10, right: 10, bottom: 10, left: 10 }
+  const plotWidth = width - padding.left - padding.right
+  const plotHeight = height - padding.top - padding.bottom
+
+  // Compute scales
+  const allValues = [...refTracks, ...altTracks]
+  const maxVal = Math.max(...allValues, 1e-8)
+  const n = Math.max(refTracks.length, altTracks.length)
+
+  const toX = (i: number) => padding.left + (i / (n - 1)) * plotWidth
+  const toY = (v: number) => padding.top + plotHeight - (v / maxVal) * plotHeight
+
+  const buildPath = (data: number[]) => {
+    if (data.length === 0) return ''
+    let d = `M ${toX(0)} ${toY(data[0])}`
+    // Downsample for smooth SVG (every 2 points if very long)
+    const step = data.length > 256 ? 2 : 1
+    for (let i = step; i < data.length; i += step) {
+      d += ` L ${toX(i)} ${toY(data[i])}`
+    }
+    return d
+  }
+
+  const buildAreaPath = (data: number[]) => {
+    const linePath = buildPath(data)
+    if (!linePath) return ''
+    return `${linePath} L ${toX(data.length - 1)} ${toY(0)} L ${toX(0)} ${toY(0)} Z`
+  }
+
+  return (
+    <div className="w-full overflow-hidden rounded-lg bg-slate-900/50 border border-slate-700/30">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-auto"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <defs>
+          <linearGradient id="refGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgb(148,163,184)" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="rgb(148,163,184)" stopOpacity="0.02" />
+          </linearGradient>
+          <linearGradient id="altGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgb(129,140,248)" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="rgb(129,140,248)" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid lines */}
+        {[0.25, 0.5, 0.75].map((frac) => (
+          <line
+            key={frac}
+            x1={padding.left}
+            y1={toY(maxVal * frac)}
+            x2={width - padding.right}
+            y2={toY(maxVal * frac)}
+            stroke="rgb(51,65,85)"
+            strokeWidth="0.5"
+            strokeDasharray="4 4"
+          />
+        ))}
+
+        {/* REF area + line */}
+        <path d={buildAreaPath(refTracks)} fill="url(#refGradient)" />
+        <path
+          d={buildPath(refTracks)}
+          fill="none"
+          stroke="rgb(148,163,184)"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          opacity="0.7"
+        />
+
+        {/* ALT area + line */}
+        <path d={buildAreaPath(altTracks)} fill="url(#altGradient)" />
+        <path
+          d={buildPath(altTracks)}
+          fill="none"
+          stroke="rgb(129,140,248)"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+
+        {/* Variant position marker (center) */}
+        <line
+          x1={width / 2}
+          y1={padding.top}
+          x2={width / 2}
+          y2={height - padding.bottom}
+          stroke="rgb(239,68,68)"
+          strokeWidth="1"
+          strokeDasharray="3 3"
+          opacity="0.6"
+        />
+        <text
+          x={width / 2 + 4}
+          y={padding.top + 10}
+          fill="rgb(239,68,68)"
+          fontSize="8"
+          fontFamily="monospace"
+          opacity="0.8"
+        >
+          variant
+        </text>
+      </svg>
+    </div>
+  )
+}
+
 // ---- Shared sub-components ----
 
 function InfoItem({
@@ -1015,9 +1423,8 @@ function ClassificationBadge({ classification, size = 'sm' }: { classification: 
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border font-headline font-semibold ${colors} ${
-        size === 'lg' ? 'px-3 py-1 text-sm' : 'px-2 py-0.5 text-xs'
-      }`}
+      className={`inline-flex items-center rounded-full border font-headline font-semibold ${colors} ${size === 'lg' ? 'px-3 py-1 text-sm' : 'px-2 py-0.5 text-xs'
+        }`}
     >
       {classification}
     </span>

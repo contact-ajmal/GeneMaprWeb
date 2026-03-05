@@ -40,6 +40,8 @@ async def init_db():
     for existing tables (adds user_id to samples if missing).
     """
     from sqlalchemy import text, inspect
+    # Import all models so Base.metadata discovers them
+    import app.models.alphagenome_prediction  # noqa: F401
 
     async with engine.begin() as conn:
         # Check if samples table needs original_filename migration

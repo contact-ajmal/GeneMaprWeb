@@ -25,6 +25,7 @@ const SampleManagerPage = lazy(() => import('./pages/SampleManagerPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const AlphaGenomePage = lazy(() => import('./pages/AlphaGenomePage'))
 
 function App() {
   const location = useLocation()
@@ -69,6 +70,7 @@ function App() {
                           <Route path="/compare" element={<ComparePage />} />
                           <Route path="/reports" element={<ReportsPage />} />
                           <Route path="/settings" element={<SettingsPage />} />
+                          <Route path="/alphagenome" element={<AlphaGenomePage />} />
                         </Routes>
                       </Layout>
                       <ChatPanel onVariantClick={handleVariantClick} />

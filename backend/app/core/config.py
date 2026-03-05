@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://openrouter.ai/api/v1"
     llm_model: str = "openrouter/auto:free"
 
+    # AlphaGenome
+    alphagenome_api_key: str = ""
+
     # Logging
     log_level: str = "INFO"
 

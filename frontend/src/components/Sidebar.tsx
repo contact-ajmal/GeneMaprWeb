@@ -20,6 +20,7 @@ import {
   ChevronRight,
   User,
   LogOut,
+  Sparkles,
 } from 'lucide-react'
 
 const navItems = [
@@ -30,6 +31,7 @@ const navItems = [
   { path: '/pharmacogenomics', label: 'Pharmacogenomics', icon: Pill },
   { path: '/compare', label: 'Sample Comparison', icon: GitCompareArrows },
   { path: '/reports', label: 'Reports', icon: FileText },
+  { path: '/alphagenome', label: 'AlphaGenome', icon: Sparkles },
   { path: '/', label: 'Upload', icon: Upload },
 ]
 

@@ -20,6 +20,7 @@ from app.api.scoring_profiles import router as scoring_profiles_router, seed_def
 from app.api.samples import router as samples_router
 from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
+from app.api.alphagenome import router as alphagenome_router
 from app.middleware import (
     LoggingMiddleware,
     configure_logging,
@@ -103,6 +104,7 @@ app.include_router(reports_router)
 app.include_router(pharmacogenomics_router)
 app.include_router(scoring_profiles_router)
 app.include_router(samples_router)
+app.include_router(alphagenome_router)
 
 
 @app.get("/health")

@@ -443,3 +443,90 @@ export interface UploadWithSampleResponse {
   sample_name: string
   message: string
 }
+
+// AlphaGenome prediction types
+export interface AlphaGenomeInterval {
+  chromosome: string
+  start: number
+  end: number
+}
+
+export interface AlphaGenomeVariantInfo {
+  chromosome: string
+  position: number
+  ref: string
+  alt: string
+}
+
+export interface AlphaGenomePrediction {
+  ref_tracks: number[]
+  alt_tracks: number[]
+  variant_effect_score: number
+  output_type: string
+  interval: AlphaGenomeInterval
+  variant: AlphaGenomeVariantInfo
+  ontology_term: string | null
+}
+
+export type AlphaGenomeOutputType = 'RNA_SEQ' | 'CAGE' | 'DNASE' | 'CHIP_HISTONE' | 'CHIP_TF' | 'ATAC'
+
+export interface AlphaGenomePredictionRow {
+  id: string
+  variant_id: string
+  chrom: string
+  pos: number
+  ref: string
+  alt: string
+  gene_symbol: string | null
+  output_type: string
+  variant_effect_score: number | null
+  ref_tracks: number[] | null
+  alt_tracks: number[] | null
+  interval_chrom: string | null
+  interval_start: number | null
+  interval_end: number | null
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+  error_message: string | null
+  created_at: string | null
+  completed_at: string | null
+}
+
+export interface AlphaGenomeScoreBin {
+  label: string
+  count: number
+}
+
+export interface AlphaGenomeTopVariant {
+  variant_id: string
+  chrom: string
+  pos: number
+  ref: string
+  alt: string
+  gene_symbol: string | null
+  variant_effect_score: number | null
+}
+
+export interface AlphaGenomeStats {
+  total: number
+  completed: number
+  failed: number
+  running: number
+  pending: number
+  mean_score: number
+  max_score: number
+  high_impact_count: number
+  score_distribution: AlphaGenomeScoreBin[]
+  top_variants: AlphaGenomeTopVariant[]
+}
+
+export interface AlphaGenomeBatchStatus {
+  total_variants: number
+  completed: number
+  failed: number
+  running: number
+  pending: number
+  processed: number
+  progress: number
+  is_running: boolean
+}
+

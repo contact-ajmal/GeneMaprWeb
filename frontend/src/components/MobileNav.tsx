@@ -7,6 +7,7 @@ import {
   Pill,
   GitCompareArrows,
   Upload,
+  Sparkles,
 } from 'lucide-react'
 
 const mobileNavItems = [
@@ -15,6 +16,7 @@ const mobileNavItems = [
   { path: '/genome-view', label: 'Genome', icon: Dna },
   { path: '/pharmacogenomics', label: 'PGx', icon: Pill },
   { path: '/compare', label: 'Compare', icon: GitCompareArrows },
+  { path: '/alphagenome', label: 'AlphaG', icon: Sparkles },
   { path: '/', label: 'Upload', icon: Upload },
 ]
 

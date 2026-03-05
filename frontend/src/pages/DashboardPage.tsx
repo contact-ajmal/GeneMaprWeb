@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { getVariants, exportVariantsCSV, getVariantStats } from '../api/variants'
+import { getPredictions } from '../api/alphagenome'
 import type { Variant, VariantFilters } from '../types/variant'
 import FilterPanel from '../components/FilterPanel'
 import VariantTable from '../components/VariantTable'
@@ -90,6 +91,22 @@ export default function DashboardPage() {
     },
     staleTime: 1000 * 60 * 5,
   })
+
+  // Fetch AlphaGenome predictions to show scores in the table
+  const { data: agData } = useQuery({
+    queryKey: ['agPredictions', primarySampleId],
+    queryFn: () => primarySampleId ? getPredictions(primarySampleId) : Promise.resolve({ predictions: [], count: 0 }),
+    enabled: !!primarySampleId,
+    staleTime: 1000 * 60 * 5,
+  })
+
+  // Build a lookup map: variant_id -> { score, status }
+  const agScoreMap = new Map<string, { score: number | null; status: string }>()
+  if (agData?.predictions) {
+    for (const p of agData.predictions) {
+      agScoreMap.set(p.variant_id, { score: p.variant_effect_score, status: p.status })
+    }
+  }
 
   const handleExport = async () => {
     try {
@@ -317,6 +334,7 @@ export default function DashboardPage() {
                 <VariantTable
                   variants={data?.variants || []}
                   onRowClick={setSelectedVariant}
+                  agScoreMap={agScoreMap}
                 />
 
                 {/* Pagination */}

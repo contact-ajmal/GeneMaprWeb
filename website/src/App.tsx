@@ -4,6 +4,7 @@ import { Navbar } from './components/Navbar'
 import { Footer } from './components/Footer'
 import { HomePage } from './pages/HomePage'
 import { FeaturesPage } from './pages/FeaturesPage'
+import { AlphaGenomePage } from './pages/AlphaGenomePage'
 import { ScreenshotsPage } from './pages/ScreenshotsPage'
 import { ArchitecturePage } from './pages/ArchitecturePage'
 import { TechStackPage } from './pages/TechStackPage'
@@ -17,6 +18,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/alphagenome" element={<AlphaGenomePage />} />
           <Route path="/screenshots" element={<ScreenshotsPage />} />
           <Route path="/architecture" element={<ArchitecturePage />} />
           <Route path="/tech-stack" element={<TechStackPage />} />

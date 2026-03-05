@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronRight, ExternalLink, Upload, Database, ShieldAlert, Brain, Dna, FileText } from 'lucide-react'
+import { ChevronRight, ExternalLink, Upload, Database, ShieldAlert, Brain, Dna, FileText, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 const screenshots = [
@@ -12,6 +12,7 @@ const screenshots = [
 ]
 
 const quickFeatures = [
+    { icon: Sparkles, label: 'AlphaGenome (DeepMind)', color: '#a78bfa' },
     { icon: Upload, label: 'VCF Upload', color: '#00d4ff' },
     { icon: Database, label: 'Multi-Source Annotation', color: '#10b981' },
     { icon: ShieldAlert, label: 'Risk Scoring', color: '#f59e0b' },
@@ -48,7 +49,7 @@ export function Hero() {
                         <span style={{ color: '#e2e8f0' }}>Platform</span>
                     </h1>
 
-                    <p style={{ fontSize: '1.15rem', color: '#94a3b8', lineHeight: 1.7, marginBottom: 36, maxWidth: 520 }}>
+                    <p style={{ fontSize: '1.15rem', color: '#94a3b8', lineHeight: 1.7, marginBottom: 24, maxWidth: 520 }}>
                         Parse, annotate, and interpret genomic variants from VCF files.
                         Integrates <strong style={{ color: '#e2e8f0' }}>ClinVar</strong>,{' '}
                         <strong style={{ color: '#e2e8f0' }}>gnomAD</strong>, and{' '}
@@ -56,12 +57,35 @@ export function Hero() {
                         <strong style={{ color: '#00d4ff' }}>AI-powered clinical summaries</strong>.
                     </p>
 
+                    {/* AlphaGenome callout */}
+                    <Link to="/alphagenome" style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '14px 20px', marginBottom: 28, maxWidth: 520,
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.06))',
+                        border: '1px solid rgba(139, 92, 246, 0.25)',
+                        borderRadius: 12, transition: 'all 0.3s',
+                    }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.5)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.25)'; e.currentTarget.style.transform = 'translateY(0)' }}
+                    >
+                        <Sparkles size={20} color="#a78bfa" />
+                        <div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#a78bfa', marginBottom: 2 }}>
+                                ✦ Powered by Google DeepMind's AlphaGenome
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                                AI variant effect predictions — gene expression, splicing, chromatin & more
+                            </div>
+                        </div>
+                        <ChevronRight size={16} color="#a78bfa" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+                    </Link>
+
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 48 }}>
                         <a href="https://github.com/contact-ajmal/GeneMapr" target="_blank" rel="noopener noreferrer" className="btn btn-primary">
                             View on GitHub <ExternalLink size={16} />
                         </a>
-                        <Link to="/features" className="btn btn-secondary">
-                            Explore Features <ChevronRight size={16} />
+                        <Link to="/alphagenome" className="btn btn-secondary" style={{ borderColor: 'rgba(139, 92, 246, 0.3)', color: '#a78bfa' }}>
+                            AlphaGenome <ChevronRight size={16} />
                         </Link>
                     </div>
 
@@ -109,14 +133,18 @@ export function Hero() {
             <div className="container" style={{ marginTop: 80 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                     {[
+                        { label: '✦ AlphaGenome', desc: 'Google DeepMind AI', to: '/alphagenome', color: '#a78bfa', special: true },
                         { label: 'Features', desc: '12+ capabilities', to: '/features', color: '#00d4ff' },
                         { label: 'Screenshots', desc: 'See every screen', to: '/screenshots', color: '#8b5cf6' },
                         { label: 'Architecture', desc: 'System design', to: '/architecture', color: '#f59e0b' },
                         { label: 'Tech Stack', desc: 'Technologies used', to: '/tech-stack', color: '#10b981' },
                         { label: 'Get Started', desc: 'Setup in minutes', to: '/get-started', color: '#ff3366' },
-                    ].map(card => (
-                        <Link key={card.to} to={card.to} className="glass-card" style={{ padding: '20px 24px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>{card.label}</div>
+                    ].map((card: any) => (
+                        <Link key={card.to} to={card.to} className="glass-card" style={{
+                            padding: '20px 24px', textAlign: 'center',
+                            ...(card.special ? { borderColor: 'rgba(139, 92, 246, 0.25)', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(6, 182, 212, 0.04))' } : {}),
+                        }}>
+                            <div style={{ fontSize: '1rem', fontWeight: 700, color: card.special ? '#a78bfa' : '#e2e8f0', marginBottom: 4 }}>{card.label}</div>
                             <div style={{ fontSize: '0.8rem', color: card.color }}>{card.desc}</div>
                         </Link>
                     ))}
